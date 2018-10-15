@@ -72,6 +72,8 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       case 'other':
       case 'unknown':
       case 'moved':
+      case 'streetrenamed':
+
         $lastRTS = $this->findLastRTS($contact_id, $record);
         if ($lastRTS) {
           if (!$this->addressChangeRecordedSince($contact_id, $lastRTS['activity_date_time'], $record)) {
@@ -296,6 +298,8 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
         return 'verzogen';
       case 'deceased':
         return 'verstorben';
+      case 'streetrenamed':
+        return 'Straße umbenannt';
       default:
         return 'sonstiges';
       }
