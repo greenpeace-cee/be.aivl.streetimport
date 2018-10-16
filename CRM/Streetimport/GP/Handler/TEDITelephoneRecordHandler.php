@@ -51,7 +51,11 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
     $phone_ids  = $this->getPhoneIDs($record, $contact_id);
 
     if (empty($contact_id)) {
-      return $this->logger->logError("Contact [{$record['id']}] couldn't be identified.", $record);
+      if ($this->isAnonymized($record)) {
+        return $this->logger->logWarning("Contact [{$record['id']}] was anonymized, skipping.", $record);
+      } else {
+        return $this->logger->logError("Contact [{$record['id']}] couldn't be identified.", $record);
+      }
     }
 
     switch ($record['Status']) {

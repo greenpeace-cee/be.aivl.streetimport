@@ -72,6 +72,39 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
   }
 
   /**
+   * Checks if a contact was anonymized.
+   *
+   * This does not handle compatibility mode IDs and does not use identity
+   * tracker, so it's merely a best-effort lookup intended to reduce
+   * import errors.
+   *
+   * @param $record
+   *
+   * @return bool
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function isAnonymized($record) {
+    if (!$this->isCompatibilityMode($record)) {
+      try {
+        $name = civicrm_api3(
+          'Contact',
+          'getvalue', [
+            'id' => $record['id'],
+            'is_deleted' => TRUE,
+            'return' => 'display_name',
+          ]
+        );
+        if ($name == 'Anonymous') {
+          return TRUE;
+        }
+      } catch (CiviCRM_API3_Exception $e) {
+        return FALSE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
    * Get the relevant address Id for the contact
    */
   protected function getAddressId($contact_id, $record) {

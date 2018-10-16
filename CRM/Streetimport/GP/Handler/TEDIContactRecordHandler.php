@@ -72,7 +72,11 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $contact_id = $this->getContactID($record);
     if (empty($contact_id)) {
       $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
-      return $this->logger->logError("Contact [{$record['id']}] couldn't be identified.", $record);
+      if ($this->isAnonymized($record)) {
+        return $this->logger->logWarning("Contact [{$record['id']}] was anonymized, skipping.", $record);
+      } else {
+        return $this->logger->logError("Contact [{$record['id']}] couldn't be identified.", $record);
+      }
     }
 
     // apply contact base data updates if provided
