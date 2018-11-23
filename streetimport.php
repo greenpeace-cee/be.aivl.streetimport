@@ -31,7 +31,7 @@ function streetimport_civicrm_install() {
   /*
    * only install if CiviSepa, CiviBanking and Little Bic Extension are installed
    */
-  $installedExtensionsResult = civicrm_api3('Extension', 'Get', array());
+  $installedExtensionsResult = civicrm_api3('Extension', 'get', ['options' => ['limit' => 0]]);
   foreach($installedExtensionsResult['values'] as $value){
       if ($value['status'] == 'installed') {
           $installedExtensions[] = $value['key'];
@@ -74,7 +74,7 @@ function streetimport_civicrm_enable() {
   // TODO Merge this check with above.
   $identityTrackerActive = FALSE;
   try {
-    $extensions = civicrm_api3('Extension', 'get', array());
+    $extensions = civicrm_api3('Extension', 'get', ['options' => ['limit' => 0]]);
     foreach ($extensions['values'] as $extension) {
       if ($extension['key'] == "de.systopia.identitytracker" && $extension['status'] == "installed") {
         $identityTrackerActive = TRUE;
