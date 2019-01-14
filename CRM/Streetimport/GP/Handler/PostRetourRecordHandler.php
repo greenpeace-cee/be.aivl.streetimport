@@ -154,14 +154,30 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
    * Add a new RTS activity
    */
   protected function addRTSActvity($contact_id, $category, $record) {
-    civicrm_api3('Activity', 'create', array(
+    $config = CRM_Streetimport_Config::singleton();
+    $activity_params = [
       'activity_type_id'    => CRM_Streetimport_GP_Config::getResponseActivityType(),
       'target_id'           => $contact_id,
       'subject'             => $this->getRTSSubject($category),
       'activity_date_time'  => date('YmdHis'),
       'campaign_id'         => $this->getCampaignID($record),
       'status_id'           => 2, // completed
-      ));
+    ];
+    $parent_id_field = $config->getGPCustomFieldKey('parent_activity_id');
+    $parent_id = $this->getParentActivityId(
+      (int) $this->getContactID($record),
+      $this->getCampaignID($record),
+      [
+        'media' => ['letter_mail']
+      ]
+    );
+    if (empty($parent_id)) {
+      $this->logger->logWarning("Could not find parent letter_mail activity for contact " . $contact_id, $record);
+    } else {
+      $activity_params[$parent_id_field] = $parent_id;
+    }
+
+    civicrm_api3('Activity', 'create', $activity_params);
   }
 
   /**

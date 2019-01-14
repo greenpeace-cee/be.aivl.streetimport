@@ -165,4 +165,33 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
   public function getMediumID($record) {
     return 2; // Phone
   }
+
+  /**
+   * Create an activity with the given data and determine the parent activity
+   *
+   * @param $data
+   * @param $record
+   * @param null $assigned_contact_ids
+   *
+   * @return \activity|void
+   */
+  public function createActivity($data, $record, $assigned_contact_ids=NULL) {
+    $config = CRM_Streetimport_Config::singleton();
+    $parent_id_field = $config->getGPCustomFieldKey('parent_activity_id');
+    $parent_id = $this->getParentActivityId(
+      (int) $this->getContactID($record),
+      $this->getCampaignID($record),
+      [
+        'activity_types' => ['Action'],
+        'min_date' => date('Y-m-d', strtotime('-90 days', strtotime($this->getDate($record)))),
+        'max_date' => date('Y-m-d', strtotime($this->getDate($record))) ,
+      ]
+    );
+    if (empty($parent_id)) {
+      $this->logger->logWarning("Could not find parent Action activity for contact " . $this->getContactID($record), $record);
+    } else {
+      $data[$parent_id_field] = $parent_id;
+    }
+    return parent::createActivity($data, $record, $assigned_contact_ids);
+  }
 }

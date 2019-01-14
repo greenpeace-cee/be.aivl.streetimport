@@ -178,6 +178,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * @param $mode  on of 'erase', 'disabled', 'deceased'
    */
   public function disableContact($contact_id, $mode, $record) {
+    $retval = ['cancelled_contracts' => []];
     switch ($mode) {
       case 'erase':
         // erase means anonymise and delete
@@ -186,7 +187,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
           'is_deleted' => 1));
         // FIXME: anonymisation not yet available
         $this->tagContact($contact_id, 'anonymise', $record);
-        $this->cancelAllContracts($contact_id, 'XX02', $record);
+        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, 'XX02', $record);
         break;
 
       case 'disable':
@@ -194,7 +195,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
         civicrm_api3('Contact', 'create', array(
           'id'         => $contact_id,
           'is_deleted' => 1));
-        $this->cancelAllContracts($contact_id, 'XX02', $record);
+        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, 'XX02', $record);
         break;
 
       case 'deceased':
@@ -204,13 +205,14 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
           //'is_deleted'    => 1, // Marco said (27.03.2017): don't delete right away, but GP-1567 says: don't do it!
           'deceased_date' => $this->getDate($record),
           'is_deceased'   => 1));
-        $this->cancelAllContracts($contact_id, 'XX13', $record);
+        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, 'XX13', $record);
         break;
 
       default:
         $this->logger->logFatal("DisableContact mode '{$mode}' not implemented!", $record);
         break;
     }
+    return $retval;
   }
 
   /**
@@ -444,9 +446,12 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'status_id'  => array('IN' => $config->getActiveMembershipStatuses()),
       'return'     => 'id,status_id'  // TODO: more needed for cancellation?
       ));
+    $ids = [];
     foreach ($memberships['values'] as $membership) {
       $this->cancelContract($membership, $record, array('cancel_reason' => $cancel_reason));
+      $ids[] = $membership['id'];
     }
+    return $ids;
   }
 
   /**
@@ -673,6 +678,71 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    *               ACTIVITY CREATION                   *
    ****************************************************/
 
+  /**
+   * Find parent activity based on campaign and other optional filters
+   *
+   * Always returns the most recent matching activity.
+   *
+   * Supported filters include:
+   *  - activity_types: array of activity type names
+   *  - media: array of medium names
+   *  - min_date: earliest possible activity date
+   *  - max_date: latest possible activity_date
+   *
+   * @param $contact_id
+   * @param $campaign_id
+   * @param array|NULL $filters array of additional filters
+   */
+  protected function getParentActivityId($contact_id, $campaign_id, array $filters = NULL) {
+    $activity_types_resolved = [];
+    if (array_key_exists('activity_types', $filters)) {
+      foreach ($filters['activity_types'] as $activity_type) {
+        $activity_types_resolved[] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', $activity_type);
+      }
+    }
+    $media_resolved = [];
+    if (array_key_exists('media', $filters)) {
+      foreach ($filters['media'] as $medium) {
+        $media_resolved[] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'medium_id', $medium);
+      }
+    }
+    $params = [
+      1 => [$contact_id, 'Integer'],
+      2 => [$campaign_id, 'Integer'],
+    ];
+    $optionalFilters = '';
+    $param_count = 2;
+    if (count($activity_types_resolved) > 0) {
+      $param_count++;
+      $optionalFilters .= " AND a.activity_type_id IN (%{$param_count})";
+      $params[$param_count] = [implode(',', $activity_types_resolved), 'String'];
+    }
+    if (count($media_resolved) > 0) {
+      $param_count++;
+      $optionalFilters .= " AND a.medium_id IN (%{$param_count})";
+      $params[$param_count] = [implode(',', $media_resolved), 'String'];
+    }
+    if (array_key_exists('min_date', $filters) && !is_null($filters['min_date'])) {
+      $param_count++;
+      $optionalFilters .= " AND a.activity_date_time >= %{$param_count}";
+      $params[$param_count] = [$filters['min_date'], 'String'];
+    }
+    if (array_key_exists('max_date', $filters) && !is_null($filters['max_date'])) {
+      $param_count++;
+      $optionalFilters .= " AND DATE(a.activity_date_time) < %{$param_count}";
+      $params[$param_count] = [$filters['max_date'], 'String'];
+    }
+    return CRM_Core_DAO::singleValueQuery("SELECT a.id
+      FROM civicrm_activity a
+      LEFT JOIN civicrm_activity_contact ac ON ac.activity_id = a.id  AND ac.record_type_id = 3
+      WHERE ac.contact_id = %1
+        AND a.campaign_id = %2
+        {$optionalFilters}
+      ORDER BY a.activity_date_time DESC
+      LIMIT 1",
+      $params
+    );
+  }
 
   /**
    * Create a "Manual Update" activity
@@ -889,5 +959,31 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       return $normalized_phone['phone'];
     }
     return $phone;
+  }
+
+  /**
+   * Set the parent Activity ID for the most recent contract activity
+   *
+   * @param $contractId
+   * @param $parentActivityId
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function setContractActivityParent($contractId, $parentActivityId) {
+    $activity_id = CRM_Core_DAO::singleValueQuery("SELECT a.id
+      FROM civicrm_activity a
+      WHERE a.source_record_id = %1
+        AND a.activity_type_id IN (" . implode(',', CRM_Contract_ModificationActivity::getModificationActivityTypeIds()) . ")
+      ORDER BY a.activity_date_time DESC
+      LIMIT 1",
+      [1 => [$contractId, 'Integer']]
+    );
+    $config = CRM_Streetimport_Config::singleton();
+    $parent_id_field = $config->getGPCustomFieldKey('parent_activity_id');
+    civicrm_api3('Activity', 'create', [
+      'id'             => $activity_id,
+      $parent_id_field => $parentActivityId,
+      'skip_handler'   => TRUE,
+    ]);
   }
 }

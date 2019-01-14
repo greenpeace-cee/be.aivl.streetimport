@@ -140,7 +140,18 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       return $this->logger->logError("Invalid Country for Contact [{$record['id']}]: '{$record['Land']}'", $record);
     }
 
-
+    $parent_id = $this->getParentActivityId(
+      $contact_id,
+      $this->getCampaignID($record),
+      [
+        'activity_types' => ['Action'],
+        'min_date' => date('Y-m-d', strtotime('-90 days', strtotime($this->getDate($record)))),
+        'max_date' => date('Y-m-d', strtotime($this->getDate($record))) ,
+      ]
+    );
+    if (empty($parent_id)) {
+      $this->logger->logWarning('Could not find parent action activity', $record);
+    }
 
     /************************************
      *         MAIN PROCESSING          *
@@ -164,6 +175,9 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
             return $this->logger->abort("Format violation, the record type requires a contract_id.", $record);
           } else {
             $contract_id = $this->createContract($contact_id, $record);
+            if (!empty($parent_id)) {
+              $this->setContractActivityParent($contract_id, $parent_id);
+            }
           }
         } else {
           // load the contract
@@ -189,6 +203,9 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
               // ALL GOOD: do the upgrade!
               $this->updateContract($contract_id, $contact_id, $record, $membership_type_id, $modify_command);
+              if (!empty($parent_id)) {
+                $this->setContractActivityParent($contract_id, $parent_id);
+              }
             }
           }
         }
@@ -207,6 +224,9 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         $membership = $this->getContract($record, $contact_id);
         if ($membership) {
           $this->cancelContract($membership, $record);
+          if (!empty($parent_id)) {
+            $this->setContractActivityParent($membership['id'], $parent_id);
+          }
         } else {
           $this->logger->logWarning("NO contract (membership) found.", $record);
         }
@@ -214,17 +234,32 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
       case TM_KONTAKT_RESPONSE_KONTAKT_LOESCHEN:
         // contact wants to be erased from GP database
-        $this->disableContact($contact_id, 'erase', $record);
+        $result = $this->disableContact($contact_id, 'erase', $record);
+        if (!empty($parent_id)) {
+          foreach ($result['cancelled_contracts'] as $membership_id) {
+            $this->setContractActivityParent($membership_id, $parent_id);
+          }
+        }
         break;
 
       case TM_KONTAKT_RESPONSE_KONTAKT_STILLEGEN:
         // contact should be disabled
-        $this->disableContact($contact_id, 'disable', $record);
+        $result = $this->disableContact($contact_id, 'disable', $record);
+        if (!empty($parent_id)) {
+          foreach ($result['cancelled_contracts'] as $membership_id) {
+            $this->setContractActivityParent($membership_id, $parent_id);
+          }
+        }
         break;
 
       case TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN:
         // contact should be disabled
-        $this->disableContact($contact_id, 'deceased', $record);
+        $result = $this->disableContact($contact_id, 'deceased', $record);
+        if (!empty($parent_id)) {
+          foreach ($result['cancelled_contracts'] as $membership_id) {
+            $this->setContractActivityParent($membership_id, $parent_id);
+          }
+        }
         break;
 
       case TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE:
