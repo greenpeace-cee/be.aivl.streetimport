@@ -110,6 +110,7 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
     if (empty($contact_data['country_id'])) {
       $contact_data['country_id'] = $config->getDefaultCountryId();
     }
+    $this->setProvince($contact_data);
 
     // format the birth date as Y-m-d
     if (!empty($contact_data['birth_date'])) {

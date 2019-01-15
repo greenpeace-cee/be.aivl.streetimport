@@ -614,6 +614,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $address_data['location_type_id'] = $config->getLocationTypeId();
       $address_data['contact_id'] = $contact_id;
       $this->resolveFields($address_data, $record);
+      $this->setProvince($address_data);
       $this->logger->logDebug("Creating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
       civicrm_api3('Address', 'create', $address_data);
       return $this->createContactUpdatedActivity($contact_id, $config->translate('Contact Address Created'), NULL, $record);
@@ -636,6 +637,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     if ($full_overwrite) {
       // this is a proper address update
       $address_data['id'] = $old_address_id;
+      $this->setProvince($address_data);
       $this->logger->logDebug("Updating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
       civicrm_api3('Address', 'create', $address_data);
       return $this->createContactUpdatedActivity($contact_id, $config->translate('Contact Address Updated'), NULL, $record);
@@ -985,5 +987,28 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $parent_id_field => $parentActivityId,
       'skip_handler'   => TRUE,
     ]);
+  }
+
+  /**
+   * Set province based on other address fields
+   *
+   * @param $params
+   */
+  protected function setProvince(&$params) {
+    if (function_exists('postcodeat_civicrm_config')) {
+      if (!empty($params['country_id']) && !empty($params['postal_code'])) {
+        try {
+          $result = civicrm_api3('PostcodeAT', 'getstate', [
+            'country_id'  => $params['country_id'],
+            'postal_code' => $params['postal_code'],
+          ]);
+          if (!empty($result['id'])) {
+            $params['state_province_id'] = $result['id'];
+          }
+        } catch (CiviCRM_API3_Exception $e) {
+          // probably non-AT address. ignore
+        }
+      }
+    }
   }
 }
