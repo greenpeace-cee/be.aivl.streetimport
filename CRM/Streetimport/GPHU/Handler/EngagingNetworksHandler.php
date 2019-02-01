@@ -23,6 +23,8 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
   }
 
   /**
+   * Determine whether this handler should process the given file/record
+   *
    * @param array $record
    * @param $sourceURI
    *
@@ -39,21 +41,31 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
   }
 
   /**
+   * Process a record
+   *
    * @param array $record
    * @param $sourceURI
    *
    * @return void
-   * @throws \CiviCRM_API3_Exception
+   * @throws \Exception
    */
   public function processRecord($record, $sourceURI) {
-    switch ($record['Campaign ID']) {
-      case 'email_ok_hungary':
-        $this->processEmail($record);
-        break;
+    $tx = new CRM_Core_Transaction();
+    try {
+      switch ($record['Campaign ID']) {
+        case 'email_ok_hungary':
+          // this relates to newsletter opt-in status
+          $this->processEmail($record);
+          break;
 
-      default:
-        $this->logger->logImport($record, TRUE, 'Engaging Networks', "Ignored Campaign ID {$record['Campaign ID']}");
-        break;
+        default:
+          $this->logger->logImport($record, TRUE, 'Engaging Networks', "Ignored Campaign ID {$record['Campaign ID']}");
+          break;
+      }
+    }
+    catch (Exception $e) {
+      $tx->rollback();
+      throw $e;
     }
   }
 
@@ -61,12 +73,14 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
    * Process email opt-in and opt-out requests
    *
    * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   private function processEmail($record) {
     $config = CRM_Streetimport_Config::singleton();
     if ($record['Campaign Status'] == 'N') {
-      // for opt-outs, we explicitly want to cover possible duplicates, so match
-      // via email and remove mail flags for all contacts.
+      // this is an opt-out. we explicitly want to cover possible duplicates,
+      // so match via email and remove newsletter group for all contacts.
       $contacts = civicrm_api3('Contact', 'get',[
         'return' => 'id',
         'email' => $record['email'],
@@ -78,15 +92,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
       $this->logger->logImport($record, TRUE, 'Engaging Networks', 'Processed Opt-out');
     }
     elseif ($record['Campaign Status'] == 'Y') {
-      $contact = $this->findContactById($record);
-      if (is_null($contact)) {
-        $contact = $contact = $this->getOrCreateContact($record);
-      }
-      civicrm_api3('Contact', 'create', [
-        'id' => $contact['id'],
-        'do_not_email' => 0,
-        'is_opt_out' => 0,
-      ]);
+      $contact = $contact = $this->getOrCreateContact($record);
       $this->addContactToGroup($contact['id'], $config->getGPGroupID('Newsletter'), $record);
       $this->logger->logImport($record, TRUE, 'Engaging Networks', "Processed Opt-in for Contact ID {$contact['id']}");
     }
@@ -95,33 +101,36 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     }
   }
 
-  private function findContactById($record) {
-    $params = [
-      'return' => 'id',
-    ];
-    if (!empty($record['civi_id'])) {
-      $params['id'] = $record['civi_id'];
-    }
-    elseif (!empty($record['supporter_id'])) {
-      // Friends ID
-      $params['external_identifier'] = $record['supporter_id'];
-    }
-    else {
-      return NULL;
-    }
-    try {
-      return civicrm_api3('Contact', 'getsingle', $params);
-    } catch (CiviCRM_API3_Exception $e) {
-      $this->logger->logWarning("Couldn't find contact with supporter_id='{$record['supporter_id']}', civi_id='{$record['civi_id']}'.", $record);
-      return NULL;
-    }
-  }
-
+  /**
+   * Get or create the contact
+   *
+   * @param $record
+   *
+   * @return array
+   * @throws \CiviCRM_API3_Exception
+   */
   private function getOrCreateContact($record) {
+    if (empty($record['civi_id']) && !empty($record['supporter_id'])) {
+      // we have no civi_id, but supporter_id (friends ID) is given
+      // use that to determine the civi_id, or fall back to XCM otherwise
+      try {
+        $record['civi_id'] = civicrm_api3('Contact', 'getvalue', [
+          'external_identifier' => $record['supporter_id'],
+          'return'              => 'id',
+        ]);
+      } catch (CiviCRM_API3_Exception $e) {
+        $this->logger->logWarning("Couldn't find contact with supporter_id='{$record['supporter_id']}'.", $record);
+      }
+    }
     $params = [
-      'first_name' => CRM_Utils_Array::value('first_name', $record),
-      'last_name'  => CRM_Utils_Array::value('last_name', $record),
-      'email'      => CRM_Utils_Array::value('email', $record),
+      'xcm_profile'  => 'engaging_networks',
+      'id'           => CRM_Utils_Array::value('civi_id', $record),
+      'first_name'   => CRM_Utils_Array::value('first_name', $record),
+      'last_name'    => CRM_Utils_Array::value('last_name', $record),
+      'email'        => CRM_Utils_Array::value('email', $record),
+      'phone'        => CRM_Utils_Array::value('phone_number', $record),
+      'do_not_email' => 0,
+      'is_opt_out'   => 0,
     ];
     return civicrm_api3('Contact', 'getorcreate', $params);
   }
