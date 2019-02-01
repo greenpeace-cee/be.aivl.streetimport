@@ -93,7 +93,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     }
     elseif ($record['Campaign Status'] == 'Y') {
       $contact = $contact = $this->getOrCreateContact($record);
-      $this->addContactToGroup($contact['id'], $config->getGPGroupID('Newsletter'), $record);
+      $this->addContactToGroup($contact['id'], $config->getNewsletterGroupID(), $record);
       $this->logger->logImport($record, TRUE, 'Engaging Networks', "Processed Opt-in for Contact ID {$contact['id']}");
     }
     else {
