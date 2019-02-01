@@ -1,6 +1,6 @@
 <?php
 /*-------------------------------------------------------------+
-| Greenpeace Poland StreetImporter Record Handlers             |
+| Greenpeace Hungary StreetImporter Record Handlers             |
 | Copyright (C) 2018 Greenpeace CEE                            |
 | Author: P. Figel (pfigel@greenpeace.org)                     |
 +--------------------------------------------------------------*/
