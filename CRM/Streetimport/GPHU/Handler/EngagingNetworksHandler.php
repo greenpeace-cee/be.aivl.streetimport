@@ -81,7 +81,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     if ($record['Campaign Status'] == 'N') {
       // this is an opt-out. we explicitly want to cover possible duplicates,
       // so match via email and remove newsletter group for all contacts.
-      $contacts = civicrm_api3('Contact', 'get',[
+      $contacts = civicrm_api3('Contact', 'get', [
         'return' => 'id',
         'email' => $record['email'],
       ]);
@@ -94,6 +94,24 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     elseif ($record['Campaign Status'] == 'Y') {
       $contact = $contact = $this->getOrCreateContact($record);
       $this->addContactToGroup($contact['id'], $config->getNewsletterGroupID(), $record);
+      if (!empty($record['Suppressed'])) {
+        // if Suppressed == 'Y', set email to "On Hold"
+        $email = reset(civicrm_api3('Email', 'get', [
+          'contact_id' => $contact['id'],
+          'email'      => CRM_Utils_Array::value('email', $record),
+          'return'     => 'id,on_hold',
+        ])['values']);
+        $on_hold = $record['Suppressed'] == 'Y' ? TRUE : FALSE;
+        if ($on_hold != $email['on_hold']) {
+          $this->logger->logMessage("Changing on_hold to {$record['Suppressed']} for Contact ID {$contact['id']}", $record);
+          civicrm_api3('Email', 'create', [
+            'id'         => $email['id'],
+            'contact_id' => $contact['id'],
+            'email'      => CRM_Utils_Array::value('email', $record),
+            'on_hold'    => $on_hold,
+          ]);
+        }
+      }
       $this->logger->logImport($record, TRUE, 'Engaging Networks', "Processed Opt-in for Contact ID {$contact['id']}");
     }
     else {
@@ -122,13 +140,18 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
         $this->logger->logWarning("Couldn't find contact with supporter_id='{$record['supporter_id']}'.", $record);
       }
     }
+    $phone = CRM_Utils_Array::value('phone_number', $record);
+    if (strlen($phone) > 20) {
+      $this->logger->logWarning("Ignoring invalid phone number '{$phone}'.", $record);
+      $phone = '';
+    }
     $params = [
       'xcm_profile'  => 'engaging_networks',
       'id'           => CRM_Utils_Array::value('civi_id', $record),
       'first_name'   => CRM_Utils_Array::value('first_name', $record),
       'last_name'    => CRM_Utils_Array::value('last_name', $record),
       'email'        => CRM_Utils_Array::value('email', $record),
-      'phone'        => CRM_Utils_Array::value('phone_number', $record),
+      'phone'        => $phone,
       'do_not_email' => 0,
       'is_opt_out'   => 0,
     ];
