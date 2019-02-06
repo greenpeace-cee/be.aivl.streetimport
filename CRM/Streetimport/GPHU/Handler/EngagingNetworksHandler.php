@@ -86,7 +86,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
         'email' => $record['email'],
       ]);
       foreach ($contacts['values'] as $contact) {
-        $this->removeContactFromGroup($contact['id'], $config->getGPGroupID('Newsletter'), $record);
+        $this->removeContactFromGroup($contact['id'], $config->getNewsletterGroupID(), $record);
         $this->logger->logDebug("Opting out Contact ID {$contact['id']}", $record);
       }
       $this->logger->logImport($record, TRUE, 'Engaging Networks', 'Processed Opt-out');
@@ -144,6 +144,10 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     if (strlen($phone) > 20) {
       $this->logger->logWarning("Ignoring invalid phone number '{$phone}'.", $record);
       $phone = '';
+    }
+    // phone numbers in civi are mostly prefixed with zeros
+    if ($phone[0] == '6') {
+      $phone = "0{$phone}";
     }
     $params = [
       'xcm_profile'  => 'engaging_networks',
