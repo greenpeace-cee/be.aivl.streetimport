@@ -81,10 +81,23 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     if ($record['Campaign Status'] == 'N') {
       // this is an opt-out. we explicitly want to cover possible duplicates,
       // so match via email and remove newsletter group for all contacts.
-      $contacts = civicrm_api3('Contact', 'get', [
-        'return' => 'id',
-        'email' => $record['email'],
-      ]);
+      try {
+        $contacts = civicrm_api3('Contact', 'get', [
+          'return' => 'id',
+          'email' => CRM_Utils_Array::value('email', $record),
+        ]);
+      }
+      catch (Exception $e) {
+        if ($e->getMessage() == 'invalid string') {
+          // this is fine.
+          // (Civi does not allow "select" to be used in .get API parameters.)
+          // (Yes, really.)
+          $this->logger->logImport($record, FALSE, 'Engaging Networks', 'Skipping line with illegal SELECT value');
+        } else {
+          throw $e;
+        }
+      }
+
       foreach ($contacts['values'] as $contact) {
         $this->removeContactFromGroup($contact['id'], $config->getNewsletterGroupID(), $record);
         $this->logger->logDebug("Opting out Contact ID {$contact['id']}", $record);
