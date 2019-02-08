@@ -153,7 +153,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
         $this->logger->logWarning("Couldn't find contact with supporter_id='{$record['supporter_id']}'.", $record);
       }
     }
-    $phone = CRM_Utils_Array::value('phone_number', $record);
+    $phone = preg_replace('/[^0-9]/', '', CRM_Utils_Array::value('phone_number', $record));
     if (strlen($phone) > 20) {
       $this->logger->logWarning("Ignoring invalid phone number '{$phone}'.", $record);
       $phone = '';
