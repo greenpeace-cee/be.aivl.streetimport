@@ -168,10 +168,13 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
       'first_name'   => CRM_Utils_Array::value('first_name', $record),
       'last_name'    => CRM_Utils_Array::value('last_name', $record),
       'email'        => CRM_Utils_Array::value('email', $record),
-      'phone'        => $phone,
       'do_not_email' => 0,
       'is_opt_out'   => 0,
     ];
+    // passing empty phone number to XCM creates diff if contact has one already
+    if (!empty($phone)) {
+      $params['phone'] = $phone;
+    }
     return civicrm_api3('Contact', 'getorcreate', $params);
   }
 }
