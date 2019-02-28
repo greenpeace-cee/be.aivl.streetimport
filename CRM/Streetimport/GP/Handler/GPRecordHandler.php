@@ -617,7 +617,16 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $this->setProvince($address_data);
       $this->logger->logDebug("Creating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
       civicrm_api3('Address', 'create', $address_data);
-      return $this->createContactUpdatedActivity($contact_id, $config->translate('Contact Address Created'), NULL, $record);
+      $template_data = [
+        'fields'  => $config->getAllAddressAttributes(),
+        'address' => $address_data,
+      ];
+      return $this->createContactUpdatedActivity(
+        $contact_id,
+        $config->translate('Contact Address Created'),
+        $this->renderTemplate('activities/ManualAddressUpdate.tpl', $template_data),
+        $record
+      );
     }
 
     // load old address
@@ -640,7 +649,17 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $this->setProvince($address_data);
       $this->logger->logDebug("Updating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
       civicrm_api3('Address', 'create', $address_data);
-      return $this->createContactUpdatedActivity($contact_id, $config->translate('Contact Address Updated'), NULL, $record);
+      $template_data = [
+        'fields'  => $config->getAllAddressAttributes(),
+        'address' => $address_data,
+        'old_address' => $old_address
+      ];
+      return $this->createContactUpdatedActivity(
+        $contact_id,
+        $config->translate('Contact Address Updated'),
+        $this->renderTemplate('activities/ManualAddressUpdate.tpl', $template_data),
+        $record
+      );
 
     } else {
       // this would create inconsistent/invalid addresses -> manual interaction required
@@ -694,8 +713,10 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * @param $contact_id
    * @param $campaign_id
    * @param array|NULL $filters array of additional filters
+   *
+   * @return string|null
    */
-  protected function getParentActivityId($contact_id, $campaign_id, array $filters = NULL) {
+  protected function getParentActivityId($contact_id, $campaign_id, array $filters = []) {
     $activity_types_resolved = [];
     if (array_key_exists('activity_types', $filters)) {
       foreach ($filters['activity_types'] as $activity_type) {
