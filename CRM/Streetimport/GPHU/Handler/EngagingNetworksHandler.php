@@ -50,18 +50,23 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
    * @throws \Exception
    */
   public function processRecord($record, $sourceURI) {
+    if ($record['owned_hungary'] != 'HU') {
+      return $this->logger->logImport($record, FALSE, 'Engaging Networks', "Ignored owned_hungary != HU");
+    }
+    if (!in_array($record['Campaign Type'], ['QMR', 'QCB', 'MSU', 'HSU'])) {
+      return $this->logger->logImport($record, FALSE, 'Engaging Networks', "Ignored unhandled Campaign Type");
+    }
     $tx = new CRM_Core_Transaction();
     try {
-      switch ($record['Campaign ID']) {
-        case 'email_ok_hungary':
-          // this relates to newsletter opt-in status
-          $this->processEmail($record);
-          break;
-
-        default:
-          $this->logger->logImport($record, TRUE, 'Engaging Networks', "Ignored Campaign ID {$record['Campaign ID']}");
-          break;
+      $change_opt_in = FALSE;
+      if (in_array($record['Campaign Type'], ['QMR', 'QCB'])) {
+        if ($record['Campaign ID'] != 'email_ok_hungary') {
+          return $this->logger->logImport($record, FALSE, 'Engaging Networks', "Ignored Campaign ID {$record['Campaign ID']}");
+        }
+        $change_opt_in = TRUE;
       }
+      $this->processEmail($record, $change_opt_in);
+      return $this->logger->logImport($record, TRUE, 'Engaging Networks');
     }
     catch (Exception $e) {
       $tx->rollback();
@@ -72,13 +77,15 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
   /**
    * Process email opt-in and opt-out requests
    *
-   * @param $record
+   * @param $record array
+   * @param $changeOptIn bool
    *
+   * @return void
    * @throws \CiviCRM_API3_Exception
    */
-  private function processEmail($record) {
+  private function processEmail($record, $changeOptIn) {
     $config = CRM_Streetimport_Config::singleton();
-    if ($record['Campaign Status'] == 'N') {
+    if ($record['Campaign Status'] == 'N' && $changeOptIn) {
       // this is an opt-out. we explicitly want to cover possible duplicates,
       // so match via email and remove newsletter group for all contacts.
       try {
@@ -92,21 +99,26 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
           // this is fine.
           // (Civi does not allow "select" to be used in .get API parameters.)
           // (Yes, really.)
-          $this->logger->logImport($record, FALSE, 'Engaging Networks', 'Skipping line with illegal SELECT value');
-        } else {
+          $this->logger->logWarning('Skipping line with illegal SELECT value', $record);
+          return;
+        }
+        else {
           throw $e;
         }
       }
 
       foreach ($contacts['values'] as $contact) {
         $this->removeContactFromGroup($contact['id'], $config->getNewsletterGroupID(), $record);
-        $this->logger->logDebug("Opting out Contact ID {$contact['id']}", $record);
+        $this->logger->logMessage("Opting out Contact ID {$contact['id']}", $record);
       }
-      $this->logger->logImport($record, TRUE, 'Engaging Networks', 'Processed Opt-out');
+      $this->logger->logMessage('Processed Opt-out', $record);
     }
-    elseif ($record['Campaign Status'] == 'Y') {
-      $contact = $contact = $this->getOrCreateContact($record);
-      $this->addContactToGroup($contact['id'], $config->getNewsletterGroupID(), $record);
+    else {
+      $contact = $contact = $this->getOrCreateContact($record, $changeOptIn);
+      if ($changeOptIn && $record['Campaign Status'] == 'Y') {
+        $this->logger->logMessage("Opting in Contact ID {$contact['id']}", $record);
+        $this->addContactToGroup($contact['id'], $config->getNewsletterGroupID(), $record);
+      }
       if (!empty($record['Suppressed'])) {
         // if Suppressed == 'Y', set email to "On Hold"
         $email = reset(civicrm_api3('Email', 'get', [
@@ -125,10 +137,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
           ]);
         }
       }
-      $this->logger->logImport($record, TRUE, 'Engaging Networks', "Processed Opt-in for Contact ID {$contact['id']}");
-    }
-    else {
-      $this->logger->logImport($record, FALSE, 'Engaging Networks', "Invalid value for Campaign Status: {$record['Campaign Status']}");
+      $this->logger->logMessage('Contact data updated', $record);
     }
   }
 
@@ -140,7 +149,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
    * @return array
    * @throws \CiviCRM_API3_Exception
    */
-  private function getOrCreateContact($record) {
+  private function getOrCreateContact($record, $changeOptIn) {
     if (empty($record['civi_id']) && !empty($record['supporter_id'])) {
       // we have no civi_id, but supporter_id (friends ID) is given
       // use that to determine the civi_id, or fall back to XCM otherwise
@@ -149,13 +158,14 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
           'external_identifier' => $record['supporter_id'],
           'return'              => 'id',
         ]);
-      } catch (CiviCRM_API3_Exception $e) {
+      }
+      catch (CiviCRM_API3_Exception $e) {
         $this->logger->logWarning("Couldn't find contact with supporter_id='{$record['supporter_id']}'.", $record);
       }
     }
     $phone = preg_replace('/[^0-9]/', '', CRM_Utils_Array::value('phone_number', $record));
     if (strlen($phone) > 20) {
-      $this->logger->logWarning("Ignoring invalid phone number '{$phone}'.", $record);
+      $this->logger->logWarning("Ignored invalid phone number '{$phone}'.", $record);
       $phone = '';
     }
     // phone numbers in civi are mostly prefixed with zeros
@@ -164,17 +174,29 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     }
     $params = [
       'xcm_profile'  => 'engaging_networks',
-      'id'           => CRM_Utils_Array::value('civi_id', $record),
-      'first_name'   => CRM_Utils_Array::value('first_name', $record),
-      'last_name'    => CRM_Utils_Array::value('last_name', $record),
-      'email'        => CRM_Utils_Array::value('email', $record),
-      'do_not_email' => 0,
-      'is_opt_out'   => 0,
+      'id'           => $record['civi_id'],
+      'first_name'   => $record['first_name'],
+      'last_name'    => $record['last_name'],
+      'email'        => $record['email'],
+      'phone'        => $phone,
     ];
-    // passing empty phone number to XCM creates diff if contact has one already
-    if (!empty($phone)) {
-      $params['phone'] = $phone;
+    if ($changeOptIn) {
+      $params['do_not_email'] = 0;
+      $params['is_opt_out'] = 0;
     }
+    $this->unsetEmpty($params);
     return civicrm_api3('Contact', 'getorcreate', $params);
   }
+
+  public function unsetEmpty(&$params) {
+    $unsetListKeys = [
+      'first_name', 'last_name', 'email', 'phone'
+    ];
+    foreach ($unsetListKeys as $key) {
+      if (empty($params[$key])) {
+        unset($params[$key]);
+      }
+    }
+  }
+
 }
