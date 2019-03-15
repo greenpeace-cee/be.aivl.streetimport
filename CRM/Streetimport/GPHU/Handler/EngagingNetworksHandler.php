@@ -88,28 +88,14 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
     if ($record['Campaign Status'] == 'N' && $changeOptIn) {
       // this is an opt-out. we explicitly want to cover possible duplicates,
       // so match via email and remove newsletter group for all contacts.
-      try {
-        $contacts = civicrm_api3('Contact', 'get', [
-          'return' => 'id',
-          'email' => CRM_Utils_Array::value('email', $record),
-        ]);
-      }
-      catch (Exception $e) {
-        if ($e->getMessage() == 'invalid string') {
-          // this is fine.
-          // (Civi does not allow "select" to be used in .get API parameters.)
-          // (Yes, really.)
-          $this->logger->logWarning('Skipping line with illegal SELECT value', $record);
-          return;
-        }
-        else {
-          throw $e;
-        }
-      }
+      $contacts = civicrm_api3('Email', 'get', [
+        'return' => 'contact_id',
+        'email' => $record['email'],
+      ]);
 
       foreach ($contacts['values'] as $contact) {
-        $this->removeContactFromGroup($contact['id'], $config->getNewsletterGroupID(), $record);
-        $this->logger->logMessage("Opting out Contact ID {$contact['id']}", $record);
+        $this->removeContactFromGroup($contact['contact_id'], $config->getNewsletterGroupID(), $record);
+        $this->logger->logMessage("Opting out Contact ID {$contact['contact_id']}", $record);
       }
       $this->logger->logMessage('Processed Opt-out', $record);
     }
@@ -123,7 +109,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
         // if Suppressed == 'Y', set email to "On Hold"
         $email = reset(civicrm_api3('Email', 'get', [
           'contact_id' => $contact['id'],
-          'email'      => CRM_Utils_Array::value('email', $record),
+          'email'      => $record['email'],
           'return'     => 'id,on_hold',
         ])['values']);
         $on_hold = $record['Suppressed'] == 'Y' ? TRUE : FALSE;
@@ -132,7 +118,7 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
           civicrm_api3('Email', 'create', [
             'id'         => $email['id'],
             'contact_id' => $contact['id'],
-            'email'      => CRM_Utils_Array::value('email', $record),
+            'email'      => $record['email'],
             'on_hold'    => $on_hold,
           ]);
         }
