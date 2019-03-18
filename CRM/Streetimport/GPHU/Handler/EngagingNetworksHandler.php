@@ -89,8 +89,9 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
       // this is an opt-out. we explicitly want to cover possible duplicates,
       // so match via email and remove newsletter group for all contacts.
       $contacts = civicrm_api3('Email', 'get', [
-        'return' => 'contact_id',
-        'email' => $record['email'],
+        'email'      => $record['email'],
+        'is_primary' => 1,
+        'return'     => 'contact_id',
       ]);
 
       foreach ($contacts['values'] as $contact) {
