@@ -208,6 +208,12 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
         $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, 'XX13', $record);
         break;
 
+      case 'deactivate':
+        civicrm_api3('Contact', 'setinactive', [
+          'contact_id' => $contact_id
+        ]);
+        break;
+
       default:
         $this->logger->logFatal("DisableContact mode '{$mode}' not implemented!", $record);
         break;

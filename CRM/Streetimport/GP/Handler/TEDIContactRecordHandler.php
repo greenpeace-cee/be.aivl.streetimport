@@ -25,6 +25,7 @@ define('TM_KONTAKT_RESPONSE_KONTAKT_STORNO_DONE',   33);
 define('TM_KONTAKT_RESPONSE_KONTAKT_RESCUE',        24);
 define('TM_KONTAKT_RESPONSE_KONTAKT_LOESCHEN',      25);
 define('TM_KONTAKT_RESPONSE_KONTAKT_STILLEGEN',     26);
+define('TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN',    27);
 define('TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN',    40);
 define('TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE',   41);
 
@@ -250,6 +251,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
             $this->setContractActivityParent($membership_id, $parent_id);
           }
         }
+        break;
+
+      case TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN:
+        $this->disableContact($contact_id, 'deactivate', $record);
         break;
 
       case TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN:
