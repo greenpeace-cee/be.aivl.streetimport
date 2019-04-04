@@ -176,7 +176,11 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
 
     // first get contact called activity type
     if ($this->_contact_called_activity_id == NULL) {
-      $this->_contact_called_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'contact_called', 'name');
+      $this->_contact_called_activity_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'contact_called'
+      );
       if (empty($this->_contact_called_activity_id)) {
         // couldn't be found => create
         $activity = civicrm_api3('OptionValue', 'create', array(

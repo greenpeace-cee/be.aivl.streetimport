@@ -687,7 +687,12 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    */
   public function resolveFields(&$data, $record) {
     if (isset($data['prefix_id']) && !is_numeric($data['prefix_id'])) {
-      $prefix_id = CRM_Core_OptionGroup::getValue('individual_prefix', $data['prefix_id']);
+      ;
+      $prefix_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Contact_BAO_Contact',
+        'prefix_id',
+        $data['prefix_id']
+      );
       if ($prefix_id) {
         $data['prefix_id'] = $prefix_id;
       } else {
@@ -787,7 +792,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     // first get contact called activity type
     if ($this->_manual_update_required_id == NULL) {
-      $this->_manual_update_required_id = CRM_Core_OptionGroup::getValue('activity_type', 'manual_update_required', 'name');
+      $this->_manual_update_required_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'manual_update_required'
+      );
       if (empty($this->_manual_update_required_id)) {
         // couldn't be found => create
         $activity = civicrm_api3('OptionValue', 'create', array(
@@ -796,7 +805,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
           'label'           => $config->translate('Manual Update Required'),
           'is_active'       => 1
           ));
-        $this->_manual_update_required_id = CRM_Core_OptionGroup::getValue('activity_type', 'manual_update_required', 'name');
+        $this->_manual_update_required_id = CRM_Core_PseudoConstant::getKey(
+          'CRM_Activity_BAO_Activity',
+          'activity_type_id',
+          'manual_update_required'
+        );
       }
     }
 
@@ -834,7 +847,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     // first get Response activity type
     if ($this->_response_activity_id == NULL) {
-      $this->_response_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'Response', 'name');
+      $this->_response_activity_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'Response'
+      );
       if (empty($this->_response_activity_id)) {
         // couldn't be found => create
         $activity = civicrm_api3('OptionValue', 'create', array(
@@ -843,7 +860,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
           'label'           => $config->translate('Manual Update Required'),
           'is_active'       => 1
           ));
-        $this->_response_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'Response', 'name');
+        $this->_response_activity_id = CRM_Core_PseudoConstant::getKey(
+          'CRM_Activity_BAO_Activity',
+          'activity_type_id',
+          'Response'
+        );
       }
     }
 
@@ -879,7 +900,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     // first get contact called activity type
     if ($this->_webshop_order_activity_id == NULL) {
-      $this->_webshop_order_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'Webshop Order', 'name');
+      $this->_webshop_order_activity_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'Webshop Order'
+      );
     }
 
     if (empty($this->_webshop_order_activity_id)) {
@@ -909,7 +934,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     // first get contact called activity type
     if ($this->_update_activity_id == NULL) {
-      $this->_update_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'contact_updated', 'name');
+      $this->_update_activity_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'contact_updated'
+      );
       if (empty($this->_update_activity_id)) {
         // couldn't be found => create
         $activity = civicrm_api3('OptionValue', 'create', array(
@@ -918,7 +947,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
           'label'           => $config->translate('Contact Updated'),
           'is_active'       => 1
           ));
-        $this->_update_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'contact_updated', 'name');
+        $this->_update_activity_id = CRM_Core_PseudoConstant::getKey(
+          'CRM_Activity_BAO_Activity',
+          'activity_type_id',
+          'contact_updated'
+        );
       }
     }
 

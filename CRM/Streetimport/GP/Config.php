@@ -145,7 +145,11 @@ class CRM_Streetimport_GP_Config extends CRM_Streetimport_Config {
    * get the activity type id of the 'Response' activity
    */
   public function getResponseActivityType() {
-    return CRM_Core_OptionGroup::getValue('activity_type', 'Response', 'name');
+    return CRM_Core_PseudoConstant::getKey(
+      'CRM_Activity_BAO_Activity',
+      'activity_type_id',
+      'Response'
+    );
   }
 
   /**

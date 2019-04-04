@@ -329,7 +329,11 @@ class CRM_Streetimport_Config {
    */
   public function getImportErrorActivityType() {
     if ($this->error_activity_id == NULL) {
-      $this->error_activity_id = CRM_Core_OptionGroup::getValue('activity_type', 'streetimport_error', 'name');
+      $this->error_activity_id = CRM_Core_PseudoConstant::getKey(
+        'CRM_Activity_BAO_Activity',
+        'activity_type_id',
+        'streetimport_error'
+      );
       if (empty($this->error_activity_id)) {
         // couldn't be found => create
         $activity = civicrm_api3('OptionValue', 'create', array(
