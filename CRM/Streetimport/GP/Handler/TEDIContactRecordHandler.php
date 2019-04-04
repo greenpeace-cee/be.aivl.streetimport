@@ -280,7 +280,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     }
 
     // GENERATE RESPONSE ACTIVITY
-    $response_title = trim("{$record['Ergebnisnummer']} {$record['ErgebnisText']}");
+    $padded_response_number = str_pad($record['Ergebnisnummer'], 2, '0', STR_PAD_LEFT);
+    $response_title = trim("{$padded_response_number} {$record['ErgebnisText']}");
     $this->createResponseActivity($contact_id, $response_title, $record);
 
 

@@ -162,6 +162,7 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       'activity_date_time'  => date('YmdHis'),
       'campaign_id'         => $this->getCampaignID($record),
       'status_id'           => 2, // completed
+      'medium_id'           => $this->getMediumID(),
     ];
     $parent_id_field = $config->getGPCustomFieldKey('parent_activity_id');
     $parent_id = $this->getParentActivityId(
@@ -395,5 +396,12 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       $this->logger->logError("Couldn't parse reference '{$reference}'.", $record);
       return NULL;
     }
+  }
+
+  /**
+   * get the medium for created activities
+   */
+  public function getMediumID($record) {
+    return 5; // Letter Mail
   }
 }
