@@ -687,7 +687,12 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    */
   public function resolveFields(&$data, $record) {
     if (isset($data['prefix_id']) && !is_numeric($data['prefix_id'])) {
-      ;
+      // map label to name first
+      $data['prefix_id'] = str_replace(
+        ['Herr', 'Frau'],
+        ['Mr.', 'Ms.'],
+        $data['prefix_id']
+      );
       $prefix_id = CRM_Core_PseudoConstant::getKey(
         'CRM_Contact_BAO_Contact',
         'prefix_id',
@@ -828,6 +833,9 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     // calculate details
     if ($messageOrTemplate) {
       if ($data) {
+        if (!empty($data['update'])) {
+          $data['update'] = $this->resolveLabels($data['update']);
+        }
         // this is should be a template -> render it!
         $activityParams['details'] = $this->renderTemplate($messageOrTemplate, $data);
       } else {
@@ -838,6 +846,16 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $this->createActivity($activityParams, $record, array($config->getFundraiserContactID()));
   }
 
+  protected function resolveLabels($data) {
+    if (!empty($data['prefix_id']) && is_numeric($data['prefix_id'])) {
+      $data['prefix_id'] = CRM_Core_PseudoConstant::getLabel(
+        'CRM_Contact_BAO_Contact',
+        'prefix_id',
+        $data['prefix_id']
+      );
+    }
+    return $data;
+  }
 
   /**
    * Create a RESPONSE activity
