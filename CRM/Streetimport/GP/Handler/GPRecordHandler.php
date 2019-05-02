@@ -900,7 +900,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'activity_date_time'  => $this->getDate($record),
       'source_contact_id'   => (int) $config->getCurrentUserID(),
       'target_contact_id'   => (int) $contact_id,
-      'medium_id'           => $this->getMediumID(),
+      'medium_id'           => $this->getMediumID($record),
     );
 
     $activity = $this->createActivity($activityParams, $record);
