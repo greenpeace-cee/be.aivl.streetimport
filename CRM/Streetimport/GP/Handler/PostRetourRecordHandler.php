@@ -367,7 +367,7 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
         return NULL;
       }
     } else {
-      $this->logger->logError("Couldn't parse reference '{$reference}'.", $record);
+      $this->logger->logWarning("Couldn't parse reference '{$reference}'.", $record);
       return NULL;
     }
   }
@@ -393,7 +393,7 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       return $this->resolveContactID("IMB-{$contact_id}", $record, 'external');
 
     } else {
-      $this->logger->logError("Couldn't parse reference '{$reference}'.", $record);
+      $this->logger->logWarning("Couldn't parse reference '{$reference}'.", $record);
       return NULL;
     }
   }
