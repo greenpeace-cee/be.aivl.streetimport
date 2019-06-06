@@ -47,11 +47,16 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
    * @throws exception if failed
    */
   public function processRecord($record, $sourceURI) {
-    $config          = CRM_Streetimport_Config::singleton();
-    $category        = $this->getCategory();
-    $reference       = $this->getReference($record);
-    $campaign_id     = $this->getCampaignID($record);
-    $contact_id      = $this->getContactID($record);
+    $config = CRM_Streetimport_Config::singleton();
+    $reference = $this->getReference($record);
+
+    if (empty(trim($reference))) {
+      return $this->logger->logImport($record, FALSE, 'RTS', "Empty reference '{$reference}'");
+    }
+
+    $category    = $this->getCategory();
+    $campaign_id = $this->getCampaignID($record);
+    $contact_id  = $this->getContactID($record);
 
     if (!$campaign_id) {
       return $this->logger->logImport($record, FALSE, 'RTS', "Couldn't identify campaign for reference '{$reference}'");
