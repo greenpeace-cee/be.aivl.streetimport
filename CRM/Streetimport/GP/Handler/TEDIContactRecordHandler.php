@@ -36,6 +36,7 @@ define('TM_PROJECT_TYPE_UPGRADE',      'upg'); // Upgrade
 define('TM_PROJECT_TYPE_REACTIVATION', 'rea'); // Reaktivierung
 define('TM_PROJECT_TYPE_RESEARCH',     'rec'); // Recherche
 define('TM_PROJECT_TYPE_SURVEY',       'umf'); // Umfrage
+define('TM_PROJECT_TYPE_LEGACY',       'leg'); // Legacy
 define('TM_PROJECT_TYPE_MIDDLE_DONOR', 'mdu'); // Middle-Donor - two subtypes:
 define('TM_PROJECT_TYPE_MD_UPGRADE',   'mdup');//     subtype 1: upgrade
 define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umwandlung)
@@ -114,6 +115,18 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
       case TM_PROJECT_TYPE_SURVEY:
         // Nothing to do here?
+        break;
+
+      case TM_PROJECT_TYPE_LEGACY:
+        $case_count = civicrm_api3('Case', 'getcount', [
+          'case_type_id' => 'legat',
+          'is_deleted'   => 0,
+          'contact_id'   => $contact_id,
+        ]);
+        if ($case_count != 1) {
+          $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
+          return $this->logger->logError("Legacy contact should have exactly one legacy case, found $case_count", $record);
+        }
         break;
 
       case TM_PROJECT_TYPE_MIDDLE_DONOR:
@@ -604,6 +617,38 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
          $this->logger->logDebug("Manual update ticket created for contact [{$contact_id}]", $record);
          break;
 
+       case 'Ratgeber verschickt':
+         $channel_field = $config->getGPCustomFieldKey('Channel', 'Communication_Channel');
+         $activityParams = [
+           'activity_type_id'    => $config->getRatgeberVerschicktActivityType(),
+           'status_id'           => 1, // Scheduled
+           'campaign_id'         => $this->getCampaignID($record),
+           'activity_date_time'  => $this->getDate($record),
+           'source_contact_id'   => (int) $config->getCurrentUserID(),
+           'target_contact_id'   => (int) $contact_id,
+           'case_id'             => $this->getCaseIdByType($contact_id, 'Legat'),
+           'medium_id'           => $this->getMediumID(),
+           $channel_field        => $this->getLegacyChannel(),
+         ];
+         $this->createActivity($activityParams, $record);
+         $this->logger->logDebug("Created 'Ratgeber verschickt' activity for contact [{$contact_id}]", $record);
+         break;
+
+       case 'Legate Opt-in':
+         $this->addContactToGroup($contact_id, $config->getGPGroupID('Legacy Opt-in'), $record);
+         $this->logger->logDebug("Added contact [{$contact_id}] to group 'Legacy Opt-in'.", $record);
+         break;
+
+       case 'Legate Info ja':
+         $this->removeContactFromGroup($contact_id, $config->getGPGroupID('keine Legacy Kommunikation'), $record);
+         $this->logger->logDebug("Removed contact [{$contact_id}] from group 'keine Legacy Kommunikation'.", $record);
+         break;
+
+       case 'Legate Info nein':
+         $this->addContactToGroup($contact_id, $config->getGPGroupID('keine Legacy Kommunikation'), $record);
+         $this->logger->logDebug("Added contact [{$contact_id}] to group 'keine Legacy Kommunikation'.", $record);
+         break;
+
        default:
          // maybe it's a T-Shirt?
          if (preg_match('#^(?P<shirt_type>M|W)/(?P<shirt_size>[A-Z]{1,2})$#', $note, $match)) {
@@ -617,6 +662,14 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
              $config->getGPCustomFieldKey('shirt_size')        => $match['shirt_size'],
              $config->getGPCustomFieldKey('linked_membership') => $contract_id,
              ));
+           break;
+         }
+
+         // maybe it's a legacy status change?
+         if (preg_match('#^Statusänderung:(?P<case_status>.*)$#', $note, $match)) {
+           $case_id = $this->getCaseIdByType($contact_id, 'Legat');
+           $this->updateCaseStatus($contact_id, $case_id, $match['case_status'], $record);
+           $this->logger->logDebug("Changed case status of case [{$case_id}] to [{$match['case_status']}].", $record);
            break;
          }
 
@@ -701,5 +754,90 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
     $this->logger->logError("Membership type '{$name}' not found.", $record);
     return NULL;
+  }
+
+  /**
+   * Get the Case ID of a case given contact id and case type
+   *
+   * @param $contact_id
+   * @param $case_type
+   *
+   * @return array
+   * @throws \CiviCRM_API3_Exception
+   */
+  private function getCaseIdByType($contact_id, $case_type) {
+    return civicrm_api3('Case', 'getvalue', [
+      'return'       => 'id',
+      'case_type_id' => $case_type,
+      'is_deleted'   => 0,
+      'contact_id'   => $contact_id,
+    ]);
+  }
+
+  /**
+   * Get the value for legacy (as in "dead people", not "legacy code") channel field
+   *
+   * @return int
+   */
+  private function getLegacyChannel() {
+    // the option group for this field has the awesome name "channel_20180528131747", might as well just hardcode
+    return 7;
+  }
+
+
+  /**
+   * Update the status of a case and create a status change activity
+   *
+   * @param $contact_id
+   * @param $case_id
+   * @param $new_status_name
+   * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  private function updateCaseStatus($contact_id, $case_id, $new_status_name, $record) {
+    $config = CRM_Streetimport_Config::singleton();
+    // since someone thought it would be a good idea to handle status change
+    // activities in the form layer, we need to re-implement that code here.
+    // we're dealing with a mix of status IDs, names, and labels.
+    // for activity subjects, we need labels, so resolve those
+    $current_status_id = civicrm_api3('Case', 'getvalue', [
+      'return' => 'status_id',
+      'id'     => $case_id,
+    ]);
+    $current_status_label = civicrm_api3('OptionValue', 'getvalue', [
+      'return'          => 'label',
+      'option_group_id' => 'case_status',
+      'value'           => $current_status_id,
+    ]);
+    $new_status_label = civicrm_api3('OptionValue', 'getvalue', [
+      'return'          => 'label',
+      'option_group_id' => 'case_status',
+      'name'           => $new_status_name,
+    ]);
+    if ($new_status_label != $current_status_label) {
+      $channel_field = $config->getGPCustomFieldKey('Channel', 'Communication_Channel');
+      $activityParams = [
+        'subject' => ts('Case status changed from %1 to %2', [
+            1 => $current_status_label,
+            2 => $new_status_label,
+          ]
+        ),
+        'activity_type_id'    => $config->getChangeCaseStatusActivityType(),
+        'status_id'           => 2, // Completed
+        'campaign_id'         => $this->getCampaignID($record),
+        'activity_date_time'  => $this->getDate($record),
+        'source_contact_id'   => (int) $config->getCurrentUserID(),
+        'target_contact_id'   => (int) $contact_id,
+        'case_id'             => $case_id,
+        'medium_id'           => $this->getMediumID(),
+        $channel_field        => $this->getLegacyChannel(),
+      ];
+      $this->createActivity($activityParams, $record);
+    }
+    civicrm_api3('Case', 'create', [
+      'id'        => $case_id,
+      'status_id' => $new_status_name,
+    ]);
   }
 }
