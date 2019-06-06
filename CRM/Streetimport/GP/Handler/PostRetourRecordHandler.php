@@ -6,7 +6,7 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
-define('REPETITION_FRAME_DECEASED',   "2 years");
+define('REPETITION_FRAME_DECEASED', "2 years");
 
 /**
  * Processes PostRetour barcode lists (GP-331)
@@ -29,6 +29,8 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
    * Check if the given handler implementation can process the record
    *
    * @param $record  an array of key=>value pairs
+   * @param $sourceURI
+   *
    * @return true or false
    */
   public function canProcessRecord($record, $sourceURI) {
@@ -38,13 +40,14 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
     return $this->file_name_data != NULL;
   }
 
-
   /**
-   * process the given record
+   * Process the given record
    *
    * @param $record  an array of key=>value pairs
+   * @param $sourceURI
+   *
    * @return true
-   * @throws exception if failed
+   * @throws \CiviCRM_API3_Exception
    */
   public function processRecord($record, $sourceURI) {
     $config = CRM_Streetimport_Config::singleton();
@@ -122,7 +125,13 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * get the contact's primary address ID
+   * Get the contact's primary address ID
+   *
+   * @param $contact_id
+   * @param $record
+   *
+   * @return mixed|null
+   * @throws \CiviCRM_API3_Exception
    */
   protected function getPrimaryAddress($contact_id, $record) {
     $config      = CRM_Streetimport_Config::singleton();
@@ -141,7 +150,12 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * increase the RTS counter at the contact's primary address
+   * Increase the RTS counter at the contact's primary address
+   *
+   * @param $primary
+   * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   protected function increaseRTSCounter($primary, $record) {
     $config      = CRM_Streetimport_Config::singleton();
@@ -157,6 +171,12 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
 
   /**
    * Add a new RTS activity
+   *
+   * @param $contact_id
+   * @param $category
+   * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   protected function addRTSActvity($contact_id, $category, $record) {
     $config = CRM_Streetimport_Config::singleton();
@@ -189,7 +209,13 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   /**
    * Find the last RTS activity
    *
+   * @param $contact_id
+   * @param $record
+   * @param null $search_frame
+   * @param null $category
+   *
    * @return array last RTS activity of the given TYPE or NULL
+   * @throws \CiviCRM_API3_Exception
    */
   protected function findLastRTS($contact_id, $record, $search_frame = NULL, $category = NULL) {
     $activity_type_id = CRM_Streetimport_GP_Config::getResponseActivityType();
@@ -230,7 +256,9 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * get category
+   * Get category
+   *
+   * @return mixed
    */
   protected function getCategory() {
     return $this->file_name_data['category'];
@@ -238,6 +266,12 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
 
   /**
    * Check if there has been a change since
+   *
+   * @param $contact_id
+   * @param $minimum_date
+   * @param $record
+   *
+   * @return bool
    */
   protected function addressChangeRecordedSince($contact_id, $minimum_date, $record) {
     // check if logging is enabled
@@ -296,7 +330,11 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * get the correct subject for the activity
+   * Get the correct subject for the activity
+   *
+   * @param $category
+   *
+   * @return string
    */
   protected function getRTSSubject($category) {
     switch (strtolower($category)) {
@@ -330,6 +368,8 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   /**
    * Will try to parse the given name and extract the parameters outlined in TM_PATTERN
    *
+   * @param $sourceID
+   *
    * @return NULL if not matched, data else
    */
   protected function parseRetourFile($sourceID) {
@@ -341,7 +381,11 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * get the reference
+   * Get the reference
+   *
+   * @param $record
+   *
+   * @return mixed
    */
   protected function getReference($record) {
     return CRM_Utils_Array::value('scanned_code', $record);
@@ -349,6 +393,11 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
 
   /**
    * Extract the campaign ID from the Kundennummer
+   *
+   * @param $record
+   *
+   * @return int|null
+   * @throws \CiviCRM_API3_Exception
    */
   protected function getCampaignID($record) {
     $reference = $this->getReference($record);
@@ -379,6 +428,10 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
 
   /**
    * Extract the contact ID from the Kundennummer
+   *
+   * @param $record
+   *
+   * @return null|string
    */
   protected function getContactID($record) {
     $reference = $this->getReference($record);
@@ -404,9 +457,14 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * get the medium for created activities
+   * Get the medium for created activities
+   *
+   * @param $record
+   *
+   * @return int
    */
   public function getMediumID($record) {
     return 5; // Letter Mail
   }
+
 }
