@@ -60,11 +60,13 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   }
 
   /**
-   * process the given record
+   * Process the given record
    *
    * @param $record  an array of key=>value pairs
+   * @param $sourceURI
+   *
    * @return true
-   * @throws exception if failed
+   * @throws \CiviCRM_API3_Exception
    */
   public function processRecord($record, $sourceURI) {
     $config = CRM_Streetimport_Config::singleton();
@@ -331,8 +333,11 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   }
 
   /**
-   * apply contact base date updates (if present in the data)
+   * Apply contact base date updates (if present in the data)
    * FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz PLZ Ort email
+   *
+   * @param $contact_id
+   * @param $record
    */
   public function performContactBaseUpdates($contact_id, $record) {
     $config = CRM_Streetimport_Config::singleton();
@@ -483,7 +488,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   }
 
   /**
-   * mark the given address as valid by resetting the RTS counter
+   * Mark the given address as valid by resetting the RTS counter
+   *
+   * @param $contact_id
+   * @param $record
    */
   public function addressValidated($contact_id, $record) {
     $config = CRM_Streetimport_Config::singleton();
@@ -500,9 +508,14 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   }
 
   /**
-   * Process addational feature from the semi-formal "Bemerkung" note fields
+   * Process additional feature from the semi-formal "Bemerkung" note fields
+   * Those can trigger certain actions within Civi as mentioned in doc
+   * "20131107_Responses_Bemerkungen_1-5"
    *
-   * Those can trigger certain actions within Civi as mentioned in doc "20131107_Responses_Bemerkungen_1-5"
+   * @param $note
+   * @param $contact_id
+   * @param $contract_id
+   * @param $record
    */
   public function processAdditionalFeature($note, $contact_id, $contract_id, $record) {
     $config = CRM_Streetimport_Config::singleton();
@@ -620,14 +633,19 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
            break;
          }
 
-         return $this->logger->logError("Unkown feature '{$note}' ignored.", $record);
+         $this->logger->logError("Unkown feature '{$note}' ignored.", $record);
+         return;
          break;
-
      }
   }
 
   /**
    * Extract the contract id from the record
+   *
+   * @param $contact_id
+   * @param $record
+   *
+   * @return int|null
    */
   protected function getContractID($contact_id, $record) {
     if (empty($record['Vertragsnummer'])) {
@@ -649,6 +667,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
   /**
    * Get the requested membership type ID from the data record
+   *
+   * @param $record
+   *
+   * @return null|int
    */
   protected function getMembershipTypeID($record) {
     switch ($record['Ergebnisnummer']) {
@@ -704,11 +726,15 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   }
 
   /**
-   * take address data and see what to do with it:
+   * Take address data and see what to do with it:
    * - if it's not enough data -> create ticket (activity) for manual processing
    * - else: if no address is present -> create a new one
    * - else: if new data wouldn't replace ALL the data of the old address -> create ticket (activity) for manual processing
    * - else: update address
+   *
+   * @param $contact_id
+   * @param $address_data
+   * @param $record
    */
   public function createOrUpdateAddress($contact_id, $address_data, $record) {
     if (empty($address_data)) return;
