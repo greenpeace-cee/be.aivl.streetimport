@@ -800,13 +800,17 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       }
     }
 
-    $isRealAddress = CRM_Streetimport_GP_Utils_Address::isRealAddress(
-      $address_data['city'],
-      $address_data['postal_code'],
-      $address_data['street_address']
-    );
+    $isCurrentCountryAustria = !empty($record['Land']) && trim($record['Land']) == CRM_Streetimport_GP_Utils_Address::AUSTRIA_ISO_CODE;
+    $isRealAustriaAddress = FALSE;
+    if ($isCurrentCountryAustria && !empty($record['strasse']) && !empty($record['PLZ']) && !empty($record['Ort'])) {
+      $isRealAustriaAddress = CRM_Streetimport_GP_Utils_Address::isRealAddress(
+        trim($record['Ort']),
+        trim($record['PLZ']),
+        trim($record['strasse'])
+      );
+    }
 
-    if ($full_overwrite && $isRealAddress) {
+    if ($full_overwrite && (!$isCurrentCountryAustria || ($isCurrentCountryAustria && $isRealAustriaAddress))) {
       // this is a proper address update
       $address_data['id'] = $old_address_id;
       $this->setProvince($address_data);

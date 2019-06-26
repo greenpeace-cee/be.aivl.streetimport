@@ -6,6 +6,13 @@
 class CRM_Streetimport_GP_Utils_Address {
 
   /**
+   * Austria iso code
+   *
+   * @var string
+   */
+  const AUSTRIA_ISO_CODE = 'AT';
+
+  /**
    * Checks if address is real by 'de.systopia.postcodeat' extension functionality
    * If 'de.systopia.postcodeat' extension does not install that method returns false
    *
@@ -27,6 +34,7 @@ class CRM_Streetimport_GP_Utils_Address {
         'ortnam' => $city,
         'stroffi' => $street,
         'return' => 'id',
+        'strict_fields_searching' => ["stroffi", 'ortnam', 'plznr'],
       ]);
 
       $ortnamSearchResult = !empty($address['values']);
@@ -41,6 +49,7 @@ class CRM_Streetimport_GP_Utils_Address {
         'gemnam38' => $city,
         'stroffi' => $street,
         'return' => 'id',
+        'strict_fields_searching' => ["stroffi", 'gemnam38', 'plznr'],
       ]);
 
       $gemnam38SearchResult = !empty($address['values']);
