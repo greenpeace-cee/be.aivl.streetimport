@@ -816,6 +816,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       $this->setProvince($address_data);
       $this->logger->logDebug("Updating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
       civicrm_api3('Address', 'create', $address_data);
+      $this->addressValidated($contact_id, $record);
       $template_data = [
         'fields'  => $config->getAllAddressAttributes(),
         'address' => $address_data,
