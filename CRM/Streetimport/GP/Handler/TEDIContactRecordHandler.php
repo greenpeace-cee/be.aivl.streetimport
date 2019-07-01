@@ -739,9 +739,26 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   public function createOrUpdateAddress($contact_id, $address_data, $record) {
     if (empty($address_data)) return;
 
+    $config = CRM_Streetimport_Config::singleton();
+    $all_fields = $config->getAllAddressAttributes();
+    if (!empty($address_data['country_id'])) {
+      // check if fields other than country_id are set
+      $fields_set = FALSE;
+      $fields_without_country = array_diff($all_fields, ['country_id']);
+      foreach ($fields_without_country as $field) {
+        if (!empty($address_data[$field])) {
+          $fields_set = TRUE;
+        }
+      }
+      // if only country is set, skip address update
+      if (!$fields_set) {
+        $this->logger->logDebug("Ignoring address update with only country_id for contact [{$contact_id}]", $record);
+        return;
+      }
+    }
+
     // check if address is complete
     $address_complete = TRUE;
-    $config = CRM_Streetimport_Config::singleton();
     $required_attributes = $config->getRequiredAddressAttributes();
     foreach ($required_attributes as $required_attribute) {
       if (empty($address_data[$required_attribute])) {
@@ -792,7 +809,6 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     // check if we'd overwrite EVERY one the relevant fields
     // to avoid inconsistent addresses
     $full_overwrite = TRUE;
-    $all_fields = $config->getAllAddressAttributes();
     foreach ($all_fields as $field) {
       if (empty($address_data[$field]) && !empty($old_address[$field])) {
         $full_overwrite = FALSE;
