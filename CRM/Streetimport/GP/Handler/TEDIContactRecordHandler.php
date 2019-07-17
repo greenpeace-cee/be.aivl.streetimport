@@ -797,18 +797,23 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $config = CRM_Streetimport_Config::singleton();
     $all_fields = $config->getAllAddressAttributes();
     if (!empty($address_data['country_id'])) {
-      // check if fields other than country_id are set
-      $fields_set = FALSE;
-      $fields_without_country = array_diff($all_fields, ['country_id']);
-      foreach ($fields_without_country as $field) {
-        if (!empty($address_data[$field])) {
-          $fields_set = TRUE;
+      if (strlen($address_data['country_id']) != 2) {
+        // remove country if it's not in ISO format
+        unset($address_data['country_id']);
+      } else {
+        // check if fields other than country_id are set
+        $fields_set = FALSE;
+        $fields_without_country = array_diff($all_fields, ['country_id']);
+        foreach ($fields_without_country as $field) {
+          if (!empty($address_data[$field])) {
+            $fields_set = TRUE;
+          }
         }
-      }
-      // if only country is set, skip address update
-      if (!$fields_set) {
-        $this->logger->logDebug("Ignoring address update with only country_id for contact [{$contact_id}]", $record);
-        return;
+        // if only country is set, skip address update
+        if (!$fields_set) {
+          $this->logger->logDebug("Ignoring address update with only country_id for contact [{$contact_id}]", $record);
+          return;
+        }
       }
     }
 
