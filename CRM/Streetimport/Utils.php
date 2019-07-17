@@ -798,6 +798,14 @@ class CRM_Streetimport_Utils {
       civicrm_api3('Activity', 'create', $custom_data);
     }
 
+    // we wouldn't need to do this if this whole thing just used Activity.create ...
+    if (!empty($data['case_id'])) {
+      $caseActivity = new CRM_Case_DAO_CaseActivity();
+      $caseActivity->case_id = $data['case_id'];
+      $caseActivity->activity_id = $activity->id;
+      $caseActivity->save();
+    }
+
     return $activity;
   }
 

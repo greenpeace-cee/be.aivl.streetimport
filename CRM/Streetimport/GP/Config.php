@@ -93,11 +93,15 @@ class CRM_Streetimport_GP_Config extends CRM_Streetimport_Config {
   /**
    * Look up custom fields and return full field data
    */
-  public function getGPCustomField($field_name) {
+  public function getGPCustomField($field_name, $group_id = NULL) {
     if (!isset($this->gp_custom_fields[$field_name]) || !is_array($this->gp_custom_fields[$field_name])) {
       // load custom field data
       try {
-        $this->gp_custom_fields[$field_name] = civicrm_api3('CustomField', 'getsingle', array('name' => $field_name));
+        $params = [ 'name' => $field_name ];
+        if (!is_null($group_id)) {
+          $params['custom_group_id'] = $group_id;
+        }
+        $this->gp_custom_fields[$field_name] = civicrm_api3('CustomField', 'getsingle', $params);
       } catch (Exception $e) {
       $this->gp_custom_fields[$field_name] = array(
         'is_error' => 1,
@@ -111,8 +115,8 @@ class CRM_Streetimport_GP_Config extends CRM_Streetimport_Config {
   /**
    * Look up custom fields and return full field data
    */
-  public function getGPCustomFieldKey($field_name) {
-    $custom_field = $this->getGPCustomField($field_name);
+  public function getGPCustomFieldKey($field_name, $group_id = NULL) {
+    $custom_field = $this->getGPCustomField($field_name, $group_id);
     return "custom_{$custom_field['id']}";
   }
 
@@ -149,6 +153,28 @@ class CRM_Streetimport_GP_Config extends CRM_Streetimport_Config {
       'CRM_Activity_BAO_Activity',
       'activity_type_id',
       'Response'
+    );
+  }
+
+  /**
+   * get the activity type id of the 'Change Case Status' activity
+   */
+  public function getChangeCaseStatusActivityType() {
+    return CRM_Core_PseudoConstant::getKey(
+      'CRM_Activity_BAO_Activity',
+      'activity_type_id',
+      'Change Case Status'
+    );
+  }
+
+  /**
+   * get the activity type id of the 'Ratgeber verschickt' activity
+   */
+  public function getRatgeberVerschicktActivityType() {
+    return CRM_Core_PseudoConstant::getKey(
+      'CRM_Activity_BAO_Activity',
+      'activity_type_id',
+      'Ratgeber verschickt'
     );
   }
 
