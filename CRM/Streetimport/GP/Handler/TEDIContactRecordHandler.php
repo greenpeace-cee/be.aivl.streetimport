@@ -640,7 +640,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
            'source_contact_id'   => (int) $config->getCurrentUserID(),
            'target_contact_id'   => (int) $contact_id,
            'case_id'             => $this->getCaseIdByType($contact_id, 'Legat'),
-           'medium_id'           => $this->getMediumID(),
+           'medium_id'           => $this->getMediumID($record),
            $channel_field        => $this->getLegacyChannel(),
          ];
          $this->createActivity($activityParams, $record);
@@ -1022,7 +1022,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         'source_contact_id'   => (int) $config->getCurrentUserID(),
         'target_contact_id'   => (int) $contact_id,
         'case_id'             => $case_id,
-        'medium_id'           => $this->getMediumID(),
+        'medium_id'           => $this->getMediumID($record),
         $channel_field        => $this->getLegacyChannel(),
       ];
       $this->createActivity($activityParams, $record);
