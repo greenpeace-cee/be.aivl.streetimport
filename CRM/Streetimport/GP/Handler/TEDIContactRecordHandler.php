@@ -83,6 +83,11 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       }
     }
 
+    // TODO: remove this workaround once TEDI stops sending files with full country names
+    if (!empty($record['Land']) && strlen($record['Land']) != 2) {
+      $record['Land'] = '';
+    }
+
     // apply contact base data updates if provided
     // FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz Land PLZ Ort email
     $this->performContactBaseUpdates($contact_id, $record);
@@ -797,23 +802,18 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $config = CRM_Streetimport_Config::singleton();
     $all_fields = $config->getAllAddressAttributes();
     if (!empty($address_data['country_id'])) {
-      if (strlen($address_data['country_id']) != 2) {
-        // remove country if it's not in ISO format
-        unset($address_data['country_id']);
-      } else {
-        // check if fields other than country_id are set
-        $fields_set = FALSE;
-        $fields_without_country = array_diff($all_fields, ['country_id']);
-        foreach ($fields_without_country as $field) {
-          if (!empty($address_data[$field])) {
-            $fields_set = TRUE;
-          }
+      // check if fields other than country_id are set
+      $fields_set = FALSE;
+      $fields_without_country = array_diff($all_fields, ['country_id']);
+      foreach ($fields_without_country as $field) {
+        if (!empty($address_data[$field])) {
+          $fields_set = TRUE;
         }
-        // if only country is set, skip address update
-        if (!$fields_set) {
-          $this->logger->logDebug("Ignoring address update with only country_id for contact [{$contact_id}]", $record);
-          return;
-        }
+      }
+      // if only country is set, skip address update
+      if (!$fields_set) {
+        $this->logger->logDebug("Ignoring address update with only country_id for contact [{$contact_id}]", $record);
+        return;
       }
     }
 
