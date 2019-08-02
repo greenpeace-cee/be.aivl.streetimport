@@ -392,6 +392,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $contact_params['id'] = $contact_id;
     $this->resolveFields($contact_params, $record);
 
+    if ($this->isContactParamAndContactIsIdentical($contact_id, $contact_params)) {
+      return;
+    }
+
     // check if contact is really individual
     $contact = civicrm_api3('Contact', 'getsingle', [
       'id' => $contact_id,
@@ -452,6 +456,37 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         $this->logger->logDebug("Contact [{$contact_id}] base data updated: " . json_encode($contact_params), $record);
       }
     }
+  }
+
+  /**
+   * Check if contact's filed from param
+   * and contact's filed from database are the same
+   *
+   * @param $contact_id
+   * @param $contact_params
+   *
+   * @return bool
+   */
+  private function isContactParamAndContactIsIdentical($contact_id, $contact_params) {
+    $params = array_keys($contact_params);
+    $return_params = implode(',', array_keys($contact_params));
+
+    try {
+      $contact = civicrm_api3('Contact', 'getsingle', [
+        'id' => $contact_id,
+        'return' => $return_params,
+      ]);
+    } catch (CiviCRM_API3_Exception $e) {
+      return false;
+    }
+
+    foreach ($params as $param) {
+      if (!empty($contact[$param]) && ($contact[$param] != $contact_params[$param])) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   /**
