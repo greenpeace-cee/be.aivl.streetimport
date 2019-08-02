@@ -352,125 +352,126 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
   /**
    * Apply contact base date updates (if present in the data)
-   * FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz PLZ Ort email
+   * FIELDS: nachname, vorname, firma, TitelAkademisch, TitelAdel, TitelAmt,  Anrede,
+   * geburtsdatum, geburtsjahr, strasse, hausnummer,  hausnummernzusatz, PLZ, Ort, email
    *
    * @param $contact_id
    * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
    */
   public function performContactBaseUpdates($contact_id, $record) {
-    $config = CRM_Streetimport_Config::singleton();
+    //Contact Entity
+    $contact_params = $this->getPreparedContactParams($record);
+    $this->updateContact($contact_params, $contact_id, $record);
 
-    // ---------------------------------------------
-    // |            Contact Entity                 |
-    // ---------------------------------------------
-    $contact_base_attributes = array(
-      'nachname'        => 'last_name',
-      'vorname'         => 'first_name',
-      // 'firma'           => 'current_employer',  => Firma won't be processed any more (GP-1414)
-      'Anrede'          => 'prefix_id',
-      'geburtsdatum'    => 'birth_date',
-      'geburtsjahr'     => $config->getGPCustomFieldKey('birth_year'),
-      'TitelAkademisch' => 'formal_title_1',
-      'TitelAdel'       => 'formal_title_2',
-      'TitelAmt'        => 'formal_title_3');
+    //Address Entity
+    $address_params = $this->getPreparedAddressParams($record);
+    $this->createOrUpdateAddress($contact_id, $address_params, $record);
 
-    // extract attributes
-    $contact_base_update = array();
-    foreach ($contact_base_attributes as $record_key => $civi_key) {
-      if (!empty($record[$record_key])) {
-        $contact_base_update[$civi_key] = trim($record[$record_key]);
-      }
+    //Email Entity
+    if (!empty($record['email'])) {
+      $this->addDetail($record, $contact_id, 'Email', ['email' => $record['email']], TRUE);
+    }
+  }
+
+  /**
+   * Update Contact
+   *
+   * @param $contact_params
+   * @param $contact_id
+   * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  private function updateContact($contact_params, $contact_id, $record) {
+    if (empty($contact_params)) {
+      return;
     }
 
-    // compile formal title
-    $formal_title = '';
-    for ($i=1; $i <= 3; $i++) {
-      if (isset($contact_base_update["formal_title_{$i}"])) {
-        $formal_title = trim($formal_title . ' ' . $contact_base_update["formal_title_{$i}"]);
-        unset($contact_base_update["formal_title_{$i}"]);
-      }
-    }
-    if (!empty($formal_title)) {
-      $contact_base_update['formal_title'] = $formal_title;
-    }
+    $contact_params['id'] = $contact_id;
+    $this->resolveFields($contact_params, $record);
 
-    // update contact
-    if (!empty($contact_base_update)) {
-      $contact_base_update['id'] = $contact_id;
-      $this->resolveFields($contact_base_update, $record);
+    // check if contact is really individual
+    $contact = civicrm_api3('Contact', 'getsingle', [
+      'id' => $contact_id,
+      'return' => 'contact_type,first_name,last_name,birth_date',
+    ]);
 
-      // check if contact is really individual
-      $contact = civicrm_api3('Contact', 'getsingle', array(
-        'id'     => $contact_id,
-        'return' => 'contact_type,first_name,last_name,birth_date'));
+    if ($contact['contact_type'] != 'Individual') {
+      // this is NOT and Individual: create an activity (see GP-1229)
+      unset($contact_params['id']);
+      $this->createManualUpdateActivity(
+        $contact_id,
+        "Convert to 'Individual'",
+        $record,
+        'activities/ManualConversion.tpl',
+        ['contact' => $contact, 'update' => $contact_params]);
+      // $this->logger->logError("Contact [{$contact_id}] is not an Individual and cannot be updated. A manual update activity has been created.", $record);
+    } else {
 
-      if ($contact['contact_type'] != 'Individual') {
-        // this is NOT and Individual: create an activity (see GP-1229)
-        unset($contact_base_update['id']);
-        $this->createManualUpdateActivity(
-            $contact_id,
-            "Convert to 'Individual'",
-            $record,
-            'activities/ManualConversion.tpl',
-            array('contact' => $contact, 'update' => $contact_base_update));
-        // $this->logger->logError("Contact [{$contact_id}] is not an Individual and cannot be updated. A manual update activity has been created.", $record);
-      } else {
+      // make sure we're not changing first_name,last_name,birth_date
+      //  so we cannot accidentally change the IDENTITY of the contact
+      //  Filling the attributes is ok, though
+      $potential_identify_change = FALSE;
+      $identity_parameters = ['contact_type', 'first_name', 'last_name', 'birth_date'];
+      foreach ($identity_parameters as $identity_parameter) {
+        $current_value = CRM_Utils_Array::value($identity_parameter, $contact);
+        $future_value = CRM_Utils_Array::value($identity_parameter, $contact_params);
+        if (!empty($current_value) && !empty($future_value)) {
+          if ($identity_parameter == 'birth_date') {
+            $current_value = date('Y-m-d', strtotime($current_value));
+            $future_value = date('Y-m-d', strtotime($future_value));
+          } else {
+            $current_value = trim(strtolower($current_value));
+            $future_value = trim(strtolower($future_value));
+          }
 
-        // make sure we're not changing first_name,last_name,birth_date
-        //  so we cannot accidentally change the IDENTITY of the contact
-        //  Filling the attributes is ok, though
-        $potential_identify_change = FALSE;
-        $identity_parameters = array('contact_type','first_name','last_name','birth_date');
-        foreach ($identity_parameters as $identity_parameter) {
-          $current_value = CRM_Utils_Array::value($identity_parameter, $contact);
-          $future_value  = CRM_Utils_Array::value($identity_parameter, $contact_base_update);
-          if (!empty($current_value) && !empty($future_value)) {
-            if ($identity_parameter == 'birth_date') {
-              $current_value = date('Y-m-d', strtotime($current_value));
-              $future_value  = date('Y-m-d', strtotime($future_value));
-            } else {
-              $current_value = trim(strtolower($current_value));
-              $future_value  = trim(strtolower($future_value));
-            }
-            if ($current_value != $future_value) {
-              // a change of the identity related parameters was requested
-              $potential_identify_change = TRUE;
-              // break;
-            }
+          if ($current_value != $future_value) {
+            // a change of the identity related parameters was requested
+            $potential_identify_change = TRUE;
+            // break;
           }
         }
+      }
 
-        if ($potential_identify_change) {
-          unset($contact_base_update['id']);
-          $this->createManualUpdateActivity(
-              $contact_id,
-              "Potential Identity Change",
-              $record,
-              'activities/IdentityChange.tpl',
-              array('contact' => $contact, 'update' => $contact_base_update));
-          $this->logger->logDebug("Detected potential identity change for contact [{$contact_id}]...flagged.", $record);
+      if ($potential_identify_change) {
+        unset($contact_params['id']);
+        $this->createManualUpdateActivity(
+          $contact_id,
+          "Potential Identity Change",
+          $record,
+          'activities/IdentityChange.tpl',
+          ['contact' => $contact, 'update' => $contact_params]);
+        $this->logger->logDebug("Detected potential identity change for contact [{$contact_id}]...flagged.", $record);
 
-        } else {
-          civicrm_api3('Contact', 'create', $contact_base_update);
-          $this->createContactUpdatedActivity($contact_id, $config->translate('Contact Base Data Updated'), NULL, $record);
-          $this->logger->logDebug("Contact [{$contact_id}] base data updated: " . json_encode($contact_base_update), $record);
-        }
+      } else {
+        civicrm_api3('Contact', 'create', $contact_params);
+        $config = CRM_Streetimport_Config::singleton();
+        $this->createContactUpdatedActivity($contact_id, $config->translate('Contact Base Data Updated'), NULL, $record);
+        $this->logger->logDebug("Contact [{$contact_id}] base data updated: " . json_encode($contact_params), $record);
       }
     }
+  }
 
-    // ---------------------------------------------
-    // |            Address Entity                 |
-    // ---------------------------------------------
-    $address_base_attributes = array(
-      'PLZ'               => 'postal_code',
-      'Ort'               => 'city',
-      'strasse'           => 'street_address_1',
-      'hausnummer'        => 'street_address_2',
-      'hausnummernzusatz' => 'street_address_3'
-      );
+  /**
+   * Gets prepared Address params
+   *
+   * @param $record
+   *
+   * @return array
+   */
+  private function getPreparedAddressParams($record) {
+    $address_base_attributes = [
+      'PLZ' => 'postal_code',
+      'Ort' => 'city',
+      'strasse' => 'street_address_1',
+      'hausnummer' => 'street_address_2',
+      'hausnummernzusatz' => 'street_address_3',
+    ];
 
     // extract attributes
-    $address_update = array();
+    $address_update = [];
     foreach ($address_base_attributes as $record_key => $civi_key) {
       if (!empty($record[$record_key])) {
         $address_update[$civi_key] = trim($record[$record_key]);
@@ -493,16 +494,54 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       $address_update['country_id'] = $record['Land'];
     }
 
-    // hand this data over to a dedicated alogorithm
-    $this->createOrUpdateAddress($contact_id, $address_update, $record);
+    return $address_update;
+  }
 
+  /**
+   * Gets prepared Contact params
+   *
+   * @param $record
+   *
+   * @return array
+   */
+  private function getPreparedContactParams($record) {
+    $config = CRM_Streetimport_Config::singleton();
 
-    // ---------------------------------------------
-    // |             Email Entity                  |
-    // ---------------------------------------------
-    if (!empty($record['email'])) {
-      $this->addDetail($record, $contact_id, 'Email', array('email' => $record['email']), TRUE);
+    //Firma won't be processed any more (GP-1414)
+    //example: 'firma' => 'current_employer',
+    $contact_base_attributes = [
+      'nachname' => 'last_name',
+      'vorname' => 'first_name',
+      'Anrede' => 'prefix_id',
+      'geburtsdatum' => 'birth_date',
+      'geburtsjahr' => $config->getGPCustomFieldKey('birth_year'),
+      'TitelAkademisch' => 'formal_title_1',
+      'TitelAdel' => 'formal_title_2',
+      'TitelAmt' => 'formal_title_3',
+    ];
+
+    // extract attributes
+    $contact_base_update = [];
+    foreach ($contact_base_attributes as $record_key => $civi_key) {
+      if (!empty($record[$record_key])) {
+        $contact_base_update[$civi_key] = trim($record[$record_key]);
+      }
     }
+
+    // compile formal title
+    $formal_title = '';
+    for ($i=1; $i <= 3; $i++) {
+      if (isset($contact_base_update["formal_title_{$i}"])) {
+        $formal_title = trim($formal_title . ' ' . $contact_base_update["formal_title_{$i}"]);
+        unset($contact_base_update["formal_title_{$i}"]);
+      }
+    }
+
+    if (!empty($formal_title)) {
+      $contact_base_update['formal_title'] = $formal_title;
+    }
+
+    return $contact_base_update;
   }
 
   /**
