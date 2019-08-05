@@ -4,6 +4,9 @@
   <thead>
     <tr>
       <td><b>Attribute<b></td>
+      {if $contact}
+        <td><b>Recorded Value</b></td>
+      {/if}
       <td><b>Submitted Value</b></td>
     </tr>
   </thead>
@@ -27,8 +30,16 @@
             Birth Year
           {/if}
         </td>
-        <td>
-          {$value}
+        {if $contact}
+          <td>
+            {if $attribute eq 'prefix_id'}
+              {$contact.individual_prefix|escape}
+            {else}
+              {$contact.$attribute|escape}
+            {/if}</td>
+        {/if}
+        <td {if $attribute|in_array:$diff} style="color: red;"{/if}>
+          {$value|escape}
         </td>
       </tr>
     {/foreach}

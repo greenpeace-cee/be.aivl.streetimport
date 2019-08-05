@@ -399,7 +399,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     // check if contact is really individual
     $contact = civicrm_api3('Contact', 'getsingle', [
       'id' => $contact_id,
-      'return' => 'contact_type,first_name,last_name,birth_date',
+      'return' => 'contact_type,first_name,last_name,birth_date,prefix_id',
     ]);
 
     if ($contact['contact_type'] != 'Individual') {
@@ -419,34 +419,32 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       //  Filling the attributes is ok, though
       $potential_identify_change = FALSE;
       $identity_parameters = ['contact_type', 'first_name', 'last_name', 'birth_date'];
+      $diff_params = [];
       foreach ($identity_parameters as $identity_parameter) {
         $current_value = CRM_Utils_Array::value($identity_parameter, $contact);
         $future_value = CRM_Utils_Array::value($identity_parameter, $contact_params);
         if (!empty($current_value) && !empty($future_value)) {
-          if ($identity_parameter == 'birth_date') {
-            $current_value = date('Y-m-d', strtotime($current_value));
-            $future_value = date('Y-m-d', strtotime($future_value));
-          } else {
-            $current_value = trim(strtolower($current_value));
-            $future_value = trim(strtolower($future_value));
-          }
-
+          $current_value = $this->normalizeParameter($identity_parameter, $current_value);
+          $future_value = $this->normalizeParameter($identity_parameter, $future_value);
           if ($current_value != $future_value) {
             // a change of the identity related parameters was requested
             $potential_identify_change = TRUE;
-            // break;
+            $diff_params[] = $identity_parameter;
           }
         }
       }
 
       if ($potential_identify_change) {
         unset($contact_params['id']);
+        if (CRM_Utils_Array::value('prefix_id', $contact) != CRM_Utils_Array::value('prefix_id', $contact_params)) {
+          $diff_params[] = 'prefix_id';
+        }
         $this->createManualUpdateActivity(
           $contact_id,
           "Potential Identity Change",
           $record,
           'activities/IdentityChange.tpl',
-          ['contact' => $contact, 'update' => $contact_params]);
+          ['contact' => $contact, 'update' => $contact_params, 'diff' => $diff_params]);
         $this->logger->logDebug("Detected potential identity change for contact [{$contact_id}]...flagged.", $record);
 
       } else {
@@ -481,12 +479,29 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     }
 
     foreach ($params as $param) {
-      if (!empty($contact[$param]) && ($contact[$param] != $contact_params[$param])) {
+      $current_value = $this->normalizeParameter($param, $contact[$param]);
+      $future_value = $this->normalizeParameter($param, $contact_params[$param]);
+      if (!empty($contact[$param]) && ($current_value != $future_value)) {
         return false;
       }
     }
 
     return true;
+  }
+
+  /**
+   * Normalize contact parameter value for comparison
+   *
+   * @param $name parameter name
+   * @param $value parameter value
+   *
+   * @return string
+   */
+  private function normalizeParameter($name, $value) {
+    if ($name == 'birth_date') {
+      return date('Y-m-d', strtotime($value));
+    }
+    return trim(strtolower($value));
   }
 
   /**
