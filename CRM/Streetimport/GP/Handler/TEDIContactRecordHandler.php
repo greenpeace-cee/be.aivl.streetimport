@@ -371,7 +371,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
     //Email Entity
     if (!empty($record['email'])) {
-      $this->addDetail($record, $contact_id, 'Email', ['email' => $record['email']], TRUE);
+      $this->addDetail($record, $contact_id, 'Email', ['email' => $record['email']], TRUE, ['is_primary' => TRUE]);
     }
   }
 

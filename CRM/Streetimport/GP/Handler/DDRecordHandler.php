@@ -132,7 +132,7 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
     // store email
     // TODO: deal with office@dialogdirect.at ?
     if (!empty(CRM_Utils_Array::value('Email', $record))) {
-      $this->addDetail($record, $contact_id, 'Email', array('email' => CRM_Utils_Array::value('Email', $record)));
+      $this->addDetail($record, $contact_id, 'Email', array('email' => CRM_Utils_Array::value('Email', $record)), FALSE, ['is_primary' => TRUE]);
     }
 
     return $contact_id;
