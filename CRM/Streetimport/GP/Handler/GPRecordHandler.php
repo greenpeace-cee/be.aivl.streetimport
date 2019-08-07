@@ -246,7 +246,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     }
 
     // FIRST: compile and create SEPA mandate
-    $annual_amount = $record['JahresBetrag'];
+    $annual_amount = CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['JahresBetrag']);
     $frequency = $record['Einzugsintervall'];
     $amount = number_format($annual_amount / $frequency, 2);
     $mandate_params = array(
@@ -316,7 +316,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'type'                => 'OOFF',
       'iban'                => $record['IBAN'],
       'bic'                 => $bic,
-      'amount'              => number_format($record['BuchungsBetrag'], 2),
+      'amount'              => number_format(CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['BuchungsBetrag']), 2),
       'contact_id'          => $contact_id,
       'currency'            => 'EUR',
       'receive_date'        => $mandate_start_date,
@@ -373,7 +373,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     }
 
     // send upgrade notification
-    $annual_amount = $record['JahresBetrag'];
+    $annual_amount = CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['JahresBetrag']);
     $frequency = $record['Einzugsintervall'];
     $contract_modification = array(
       'action'                                  => $action,
