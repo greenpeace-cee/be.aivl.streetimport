@@ -14,11 +14,10 @@
     <url desc="Support">http://www.civicoop.org</url>
     <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
-  <releaseDate>2019-08-06</releaseDate>
-  <version>GP-2.5.27</version>
+  <releaseDate>2019-08-13</releaseDate>
+  <version>GP-2.5.28</version>
   <develStage>stable</develStage>
   <compatibility>
-    <ver>4.6</ver>
     <ver>4.7</ver>
   </compatibility>
   <comments>Based on AIVL's Street Recruitment Import</comments>
