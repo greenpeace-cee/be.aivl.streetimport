@@ -477,11 +477,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     } catch (CiviCRM_API3_Exception $e) {
       return false;
     }
-
     foreach ($params as $param) {
       $current_value = $this->normalizeParameter($param, $contact[$param]);
       $future_value = $this->normalizeParameter($param, $contact_params[$param]);
-      if (!empty($contact[$param]) && ($current_value != $future_value)) {
+      if ($current_value != $future_value) {
         return false;
       }
     }
@@ -498,7 +497,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
    * @return string
    */
   private function normalizeParameter($name, $value) {
-    if ($name == 'birth_date') {
+    if (!empty($value) && $name == 'birth_date') {
       return date('Y-m-d', strtotime($value));
     }
     return trim(strtolower($value));
