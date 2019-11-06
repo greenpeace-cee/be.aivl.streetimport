@@ -944,14 +944,14 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $this->createActivity($activityParams + $data, $record);
   }
 
-    /**
-     * Create a "Contact Updated" activity
-     *
-     * @param $contact_id
-     * @param $subject
-     * @param $details
-     * @param $record
-     */
+  /**
+   * Create a "Contact Updated" activity
+   *
+   * @param $contact_id
+   * @param $subject
+   * @param $details
+   * @param $record
+   */
   public function createContactUpdatedActivity($contact_id, $subject, $details, $record) {
     $config = CRM_Streetimport_Config::singleton();
 
