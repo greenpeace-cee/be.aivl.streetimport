@@ -978,8 +978,6 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       }
     }
 
-    $agencyValue = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'medium_id', 'agency');
-
     // NOW create the activity
     $activityParams = array(
       'activity_type_id'    => $this->_update_activity_id,
@@ -987,11 +985,10 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'details'             => $details,
       'status_id'           => $config->getActivityCompleteStatusId(),
       'campaign_id'         => $this->getCampaignID($record),
-      'medium_id'           => (!empty($agencyValue)) ? $agencyValue : '',
       'activity_date_time'  => date('YmdHis'), // has to be now
       'source_contact_id'   => (int) $config->getCurrentUserID(),
       'target_contact_id'   => (int) $contact_id,
-      // 'assignee_contact_id' => (int) $config->getFundraiserContactID(),
+      'medium_id'           => $this->getMediumID($record),
     );
 
     $this->createActivity($activityParams, $record);

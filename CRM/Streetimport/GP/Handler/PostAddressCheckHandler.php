@@ -233,6 +233,7 @@ class CRM_Streetimport_GP_Handler_PostAddressCheckHandler extends CRM_Streetimpo
       'target_id'           => $contact_id,
       'subject'             => 'Adress.Check: ' . $response,
       'activity_date_time'  => date('YmdHis'),
+      'medium_id'           => $this->getMediumID($record),
       'campaign_id'         => $this->getCampaignID($record),
       'status_id'           => $status_id,
     ];
@@ -299,6 +300,19 @@ class CRM_Streetimport_GP_Handler_PostAddressCheckHandler extends CRM_Streetimpo
       return $this->contactToAddress[$contact_id];
     }
     return NULL;
+  }
+
+  /**
+   * Gets medium id
+   *
+   * @param $record
+   *
+   * @return string
+   */
+  protected function getMediumID($record) {
+    $agencyValue = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'medium_id', 'agency');
+
+    return (!empty($agencyValue)) ? $agencyValue : '';
   }
 
 }
