@@ -771,10 +771,25 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       }
     }
 
+    $activityFields = CRM_Activity_DAO_Activity::fields();
+    $subjectMaxlength = (!empty($activityFields['activity_subject']['maxlength'])) ? $activityFields['activity_subject']['maxlength'] : 255;
+    $endSymbol = '...';
+    $translatedSubject = $config->translate($subject);
+    $details = '';
+
+    if (strlen($translatedSubject) > $subjectMaxlength) {
+      $handledSubject = substr($translatedSubject, 0, $subjectMaxlength - strlen($endSymbol));
+      $handledSubject .= $endSymbol;
+      $details = $translatedSubject;
+    } else {
+      $handledSubject = $translatedSubject;
+    }
+
     // NOW create the activity
     $activityParams = array(
       'activity_type_id'    => $this->_manual_update_required_id,
-      'subject'             => $config->translate($subject),
+      'subject'             => $handledSubject,
+      'details'             => $details,
       'status_id'           => $config->getImportErrorActivityStatusId(),
       'campaign_id'         => $this->getCampaignID($record),
       'activity_date_time'  => $this->getDate($record),
