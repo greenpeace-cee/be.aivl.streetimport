@@ -280,7 +280,6 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
     //  ---------------------------------------------
     $mandate_data = array(
       'iban'               => CRM_Utils_Array::value('IBAN', $record),
-      'bic'                => $this->getBIC($record, CRM_Utils_Array::value('IBAN', $record)),
       'amount'             => CRM_Utils_Array::value('MG_Beitrag_pro_Jahr', $record),
       'frequency_unit'     => 'month',
       'contact_id'         => $contact_id,
@@ -315,7 +314,7 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
     $mandate_data['cycle_day']  = $config->getNextCycleDay($mandate_data['start_date'], $now);
 
     // check parameters
-    $required_params = array('bic', 'iban', 'start_date', 'cycle_day', 'contact_id');
+    $required_params = array('iban', 'start_date', 'cycle_day', 'contact_id');
     foreach ($required_params as $required_param) {
       if (empty($mandate_data[$required_param])) {
         $this->logger->logError("Contract couldn't be created, '{$required_param}' is missing.", $record);
@@ -348,7 +347,7 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
       'membership_general.membership_contract'               => CRM_Utils_Array::value('MG_NR_Formular', $record),
       'membership_general.membership_dialoger'               => $this->getDialogerID($record),
       'membership_payment.membership_recurring_contribution' => $mandate['entity_id'],
-      'membership_payment.from_ba'                           => CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN'], $record['BIC']),
+      'membership_payment.from_ba'                           => CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN'], NULL),
       'membership_payment.to_ba'                             => CRM_Contract_BankingLogic::getCreditorBankAccount(),
     );
 

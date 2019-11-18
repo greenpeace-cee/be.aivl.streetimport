@@ -793,7 +793,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
            break;
          }
 
-         $this->logger->logError("Unkown feature '{$note}' ignored.", $record);
+         $this->logger->logError("Unknown feature '{$note}' ignored.", $record);
          return;
      }
   }

@@ -29,7 +29,7 @@ function streetimport_civicrm_xmlMenu(&$files) {
  */
 function streetimport_civicrm_install() {
   /*
-   * only install if CiviSepa, CiviBanking and Little Bic Extension are installed
+   * only install if CiviSepa and CiviBanking Extension are installed
    */
   $installedExtensionsResult = civicrm_api3('Extension', 'get', ['options' => ['limit' => 0]]);
   foreach($installedExtensionsResult['values'] as $value){
@@ -40,7 +40,6 @@ function streetimport_civicrm_install() {
   $requiredExtensions = array(
       'org.project60.sepa' => 'SEPA direct debit (org.project60.sepa)',
       'org.project60.banking' => 'CiviBanking (org.project60.banking)',
-      'org.project60.bic' => 'Little Bic Extension (org.project60.bic)'
   );
   $missingExtensions = array_diff(array_keys($requiredExtensions), $installedExtensions);
   if (count($missingExtensions) == 1) {

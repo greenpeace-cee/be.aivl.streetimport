@@ -245,13 +245,6 @@ class CRM_Streetimport_GP_Config extends CRM_Streetimport_Config {
   }
 
   /**
-   * Check if the "Little BIC Extension" is available
-   */
-  public function isLittleBicExtensionAccessible() {
-    return CRM_Sepa_Logic_Settings::isLittleBicExtensionAccessible();
-  }
-
-  /**
    * Should processing of the whole file stop if no handler
    * was found for a line?
    */
