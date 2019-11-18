@@ -914,6 +914,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
   /**
    * Create a "Contact Updated" activity
+   *
+   * @param $contact_id
+   * @param $subject
+   * @param $details
+   * @param $record
    */
   public function createContactUpdatedActivity($contact_id, $subject, $details, $record) {
     $config = CRM_Streetimport_Config::singleton();
@@ -951,7 +956,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'activity_date_time'  => date('YmdHis'), // has to be now
       'source_contact_id'   => (int) $config->getCurrentUserID(),
       'target_contact_id'   => (int) $contact_id,
-      // 'assignee_contact_id' => (int) $config->getFundraiserContactID(),
+      'medium_id'           => $this->getMediumID($record),
     );
 
     $this->createActivity($activityParams, $record);
