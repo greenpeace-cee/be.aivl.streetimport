@@ -76,7 +76,6 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       case 'incomplete':
       case 'badcode':
       case 'rejected':
-      case 'notretrieved':
       case 'other':
       case 'unknown':
       case 'moved':
@@ -93,6 +92,10 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
         } else {
           $this->increaseRTSCounter($primary_address, $record);
         }
+        $this->addRTSActvity($contact_id, $category, $record);
+        break;
+
+      case 'notretrieved':
         $this->addRTSActvity($contact_id, $category, $record);
         break;
 
