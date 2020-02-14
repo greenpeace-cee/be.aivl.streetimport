@@ -49,6 +49,8 @@ define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umw
  * @license AGPL-3.0
  */
 class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimport_GP_Handler_TMRecordHandler {
+  use CRM_Streetimport_GP_Utils_OutgoingCallTrait;
+
   /**
    * Check if the given handler implementation can process the record
    *
@@ -333,6 +335,13 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     for ($i=1; $i <= 10; $i++) {
       if (!empty($record["Bemerkung{$i}"])) {
         $this->processAdditionalFeature($record["Bemerkung{$i}"], $contact_id, $contract_id, $record);
+      }
+    }
+
+    // process JSON fields. (yes, JSON in a CSV file. don't judge.)
+    for ($i=1; $i <= 10; $i++) {
+      if (!empty($record["JSON{$i}"])) {
+        $this->processJSON($record["JSON{$i}"], $contact_id, $contract_id, $record);
       }
     }
 
@@ -1133,6 +1142,48 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       'id'        => $case_id,
       'status_id' => $new_status_name,
     ]);
+  }
+
+  private function processJSON($json, $contact_id, $contract_id, array $record) {
+    $data = json_decode(trim($json), TRUE);
+    if (is_null($data)) {
+      $this->logger->logError('Invalid JSON. Error was: ' . json_last_error_msg() . " for JSON '$json'", $record);
+      return;
+    }
+    $config = CRM_Streetimport_Config::singleton();
+    switch ($data['action']) {
+      case 'outgoing_call':
+        $data['phone'] = $this->_normalizePhoneNumber($data['phone']);
+        switch ($data['subject']) {
+          case 'bmf_umschreibung':
+            $subject = "BMF move to {$data['last_name']}, {$data['first_name']} requested";
+            break;
+
+          default:
+            $subject = $data['subject'];
+            break;
+        }
+        $this->createActivity(
+          [
+            'subject'             => $subject,
+            'activity_type_id'    => $config->getOutgoingCallActivityType(),
+            'status_id'           => 1, // Scheduled
+            'campaign_id'         => $this->getCampaignID($record),
+            'activity_date_time'  => $this->getDate($record),
+            'source_contact_id'   => (int) $config->getCurrentUserID(),
+            'target_contact_id'   => (int) $contact_id,
+            'medium_id'           => $this->getMediumID($record),
+            'details'             => $this->generateOutgoingCallDetails(
+              'The contact has requested a BMF move. Please verify the details with the contact and perform the move.',
+              $data,
+              $contact_id,
+              $contract_id
+            )
+          ],
+          $record
+        );
+        break;
+    }
   }
 
 }

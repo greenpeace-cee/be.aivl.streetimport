@@ -168,6 +168,17 @@ class CRM_Streetimport_GP_Config extends CRM_Streetimport_Config {
   }
 
   /**
+   * get the activity type id of the 'Outgoing Call' activity
+   */
+  public function getOutgoingCallActivityType() {
+    return CRM_Core_PseudoConstant::getKey(
+      'CRM_Activity_BAO_Activity',
+      'activity_type_id',
+      'Outgoing Call'
+    );
+  }
+
+  /**
    * get the activity type id of the 'Ratgeber verschickt' activity
    */
   public function getRatgeberVerschicktActivityType() {
