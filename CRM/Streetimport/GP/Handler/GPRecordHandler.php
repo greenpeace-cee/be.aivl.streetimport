@@ -1023,10 +1023,15 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * @throws \CiviCRM_API3_Exception
    */
   protected function setContractActivityParent($contractId, $parentActivityId) {
+    if (class_exists('CRM_Contract_Change')) {
+      $activityTypes = CRM_Contract_Change::getActivityTypeIds();
+    } else {
+      $activityTypes = CRM_Contract_ModificationActivity::getModificationActivityTypeIds();
+    }
     $activity_id = CRM_Core_DAO::singleValueQuery("SELECT a.id
       FROM civicrm_activity a
       WHERE a.source_record_id = %1
-        AND a.activity_type_id IN (" . implode(',', CRM_Contract_ModificationActivity::getModificationActivityTypeIds()) . ")
+        AND a.activity_type_id IN (" . implode(',', $activityTypes) . ")
       ORDER BY a.activity_date_time DESC
       LIMIT 1",
       [1 => [$contractId, 'Integer']]
