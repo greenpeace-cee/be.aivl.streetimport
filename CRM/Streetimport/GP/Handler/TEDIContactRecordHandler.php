@@ -29,6 +29,8 @@ define('TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN',    27);
 define('TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN',    40);
 define('TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE',   41);
 
+define('TM_KONTAKT_RESPONSE_POTENTIAL_IDENTITY_CHANGE', 94);
+
 
 
 define('TM_PROJECT_TYPE_CONVERSION',   'umw'); // Umwandlung
@@ -176,6 +178,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       $this->logger->logWarning('Could not find parent action activity', $record);
     }
 
+    $createResponse = TRUE;
+
     /************************************
      *         MAIN PROCESSING          *
      ***********************************/
@@ -296,15 +300,23 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           'do_not_phone' => 1));
         break;
 
+      case TM_KONTAKT_RESPONSE_POTENTIAL_IDENTITY_CHANGE:
+        $createResponse = FALSE;
+        break;
+
       default:
         // in all other cases nothing needs to happen except the
         //  to create the reponse activity, see below.
     }
 
-    // GENERATE RESPONSE ACTIVITY
-    $padded_response_number = str_pad($record['Ergebnisnummer'], 2, '0', STR_PAD_LEFT);
-    $response_title = trim("{$padded_response_number} {$record['ErgebnisText']}");
-    $this->createResponseActivity($contact_id, $response_title, $record);
+    if ($createResponse) {
+      // GENERATE RESPONSE ACTIVITY
+      $this->createResponseActivity(
+        $contact_id,
+        $this->assembleResponseSubject($record['Ergebnisnummer'], $record['ErgebnisText']),
+        $record
+      );
+    }
 
 
     /************************************
@@ -1157,6 +1169,11 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         switch ($data['subject']) {
           case 'bmf_umschreibung':
             $subject = "BMF move to {$data['last_name']}, {$data['first_name']} requested";
+            $this->createResponseActivity(
+              $contact_id,
+              $this->assembleResponseSubject($data['response_code'], $data['response']),
+              $record
+            );
             break;
 
           default:
@@ -1184,6 +1201,11 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         );
         break;
     }
+  }
+
+  protected function assembleResponseSubject($responseCode, $responseText) {
+    $responseCode = str_pad($responseCode, 2, '0', STR_PAD_LEFT);
+    return trim("{$responseCode} {$responseText}");
   }
 
 }
