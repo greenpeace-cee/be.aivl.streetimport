@@ -29,6 +29,10 @@ define('TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN',    27);
 define('TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN',    40);
 define('TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE',   41);
 
+define('TM_KONTAKT_RESPONSE_KONTAKT_KEIN_ANSCHLUSS',    90);
+define('TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ERREICHT',    91);
+define('TM_KONTAKT_RESPONSE_KONTAKT_KEIN_KONTAKT',      92);
+define('TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ANGEGRIFFEN', 93);
 define('TM_KONTAKT_RESPONSE_POTENTIAL_IDENTITY_CHANGE', 94);
 
 
@@ -92,10 +96,23 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       $record['Land'] = '';
     }
 
-    // apply contact base data updates if provided
-    // FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz Land PLZ Ort email
-    $this->performContactBaseUpdates($contact_id, $record);
-
+    // only perform these actions if the contact was actually reached
+    if ($this->isContactReachedResponse($record['Ergebnisnummer'])) {
+      // apply contact base data updates if provided
+      // FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz Land PLZ Ort email
+      $this->performContactBaseUpdates($contact_id, $record);
+      // Sign up for newsletter
+      // FIELDS: emailNewsletter
+      if ($this->isTrue($record, 'emailNewsletter')) {
+        $newsletter_group_id = $config->getNewsletterGroupID();
+        $this->addContactToGroup($contact_id, $newsletter_group_id, $record);
+      }
+      // If "X" then set  "rts_counter" in table "civicrm_value_address_statistics"  to "0"
+      // FIELDS: AdresseGeprueft
+      if ($this->isTrue($record, 'AdresseGeprueft')) {
+        $this->addressValidated($contact_id, $record);
+      }
+    }
 
     /************************************
      *           VERIFICATION           *
@@ -323,23 +340,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
      *      SECONDARY PROCESSING        *
      ***********************************/
 
-    // Sign up for newsletter
-    // FIELDS: emailNewsletter
-    if ($this->isTrue($record, 'emailNewsletter')) {
-      $newsletter_group_id = $config->getNewsletterGroupID();
-      $this->addContactToGroup($contact_id, $newsletter_group_id, $record);
-    }
-
     // Add a note if requested
     // FIELDS: BemerkungFreitext
     if (!empty($record['BemerkungFreitext'])) {
       $this->createManualUpdateActivity($contact_id, $record['BemerkungFreitext'], $record);
-    }
-
-    // If "X" then set  "rts_counter" in table "civicrm_value_address_statistics"  to "0"
-    // FIELDS: AdresseGeprueft
-    if ($this->isTrue($record, 'AdresseGeprueft')) {
-      $this->addressValidated($contact_id, $record);
     }
 
     // process additional fields
@@ -1206,6 +1210,23 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   protected function assembleResponseSubject($responseCode, $responseText) {
     $responseCode = str_pad($responseCode, 2, '0', STR_PAD_LEFT);
     return trim("{$responseCode} {$responseText}");
+  }
+
+  /**
+   * Does $responseCode indicate that the contact was reached?
+   *
+   * @param $responseCode
+   *
+   * @return bool
+   */
+  protected function isContactReachedResponse($responseCode) {
+    $noContactResponses = [
+      TM_KONTAKT_RESPONSE_KONTAKT_KEIN_ANSCHLUSS,
+      TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ERREICHT,
+      TM_KONTAKT_RESPONSE_KONTAKT_KEIN_KONTAKT,
+      TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ANGEGRIFFEN,
+    ];
+    return !in_array($responseCode, $noContactResponses);
   }
 
 }
