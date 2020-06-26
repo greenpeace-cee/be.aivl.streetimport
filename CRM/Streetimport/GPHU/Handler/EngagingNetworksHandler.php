@@ -155,9 +155,16 @@ class CRM_Streetimport_GPHU_Handler_EngagingNetworksHandler extends CRM_Streetim
       $this->logger->logWarning("Ignored invalid phone number '{$phone}'.", $record);
       $phone = '';
     }
-    // phone numbers in civi are mostly prefixed with zeros
-    if ($phone[0] == '6') {
-      $phone = "0{$phone}";
+    // normalize the phone number prior to XCM processing
+    if (!empty($phone) && method_exists('CRM_Utils_Normalize', 'normalize_phone')) {
+      $normalized_phone = [
+        'phone_type_id' => 1,
+        'phone'         => $phone,
+      ];
+      $normalizer = new CRM_Utils_Normalize();
+      if ($normalizer->normalize_phone($normalized_phone)) {
+        $phone = $normalized_phone['phone'];
+      }
     }
     $params = [
       'xcm_profile'  => 'engaging_networks',
