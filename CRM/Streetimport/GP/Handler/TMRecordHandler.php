@@ -72,6 +72,17 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
   }
 
   /**
+   * Get the activity ID referenced by this record
+   *
+   * @param array $record
+   *
+   * @return int|null
+   */
+  protected function getActivityId($record) {
+    return empty($record['activity_id']) ? NULL : $record['activity_id'];
+  }
+
+  /**
    * Checks if a contact was anonymized.
    *
    * This does not handle compatibility mode IDs and does not use identity
@@ -178,7 +189,7 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
   public function createActivity($data, $record, $assigned_contact_ids=NULL) {
     $config = CRM_Streetimport_Config::singleton();
     $parent_id_field = $config->getGPCustomFieldKey('parent_activity_id');
-    $parent_id = $this->getParentActivityId(
+    $parent_id = $this->getActivityId($record) ?? $this->getParentActivityId(
       (int) $this->getContactID($record),
       $this->getCampaignID($record),
       [

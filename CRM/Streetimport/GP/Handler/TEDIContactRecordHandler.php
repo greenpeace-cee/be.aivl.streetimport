@@ -182,7 +182,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       return $this->logger->logError("Invalid Country for Contact [{$record['id']}]: '{$record['Land']}'", $record);
     }
 
-    $parent_id = $this->getParentActivityId(
+    $parent_id = $this->getActivityId($record) ?? $this->getParentActivityId(
       $contact_id,
       $this->getCampaignID($record),
       [
