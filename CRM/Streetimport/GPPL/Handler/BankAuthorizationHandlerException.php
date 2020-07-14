@@ -11,6 +11,6 @@
  * @author Patrick Figel <pfigel@greenpeace.org>
  * @license AGPL-3.0
  */
-class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException extends CRM_Exception {
+class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException extends CRM_Core_Exception {
 
 }
