@@ -9,123 +9,13 @@
 define('REPETITION_FRAME_DECEASED', "2 years");
 
 /**
- * Processes PostRetour barcode lists (GP-331)
+ * Base class for postal return files
  *
  * @author Björn Endres (SYSTOPIA) <endres@systopia.de>
+ * @author Patrick Figel <pfigel@greenpeace.org>
  * @license AGPL-3.0
  */
-class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimport_GP_Handler_GPRecordHandler {
-
-  /** file name / reference patterns as defined in GP-331 */
-  protected static $FILENAME_PATTERN       = '#^RTS_(?P<category>[a-zA-Z\-]+)(_[0-9]*)?[.][a-zA-Z]+$#';
-  protected static $REFERENCE_PATTERN_NEW  = '#^0?(?P<campaign_id>[0-9]{4})C(?P<contact_id>[0-9]{9})$#';
-  protected static $REFERENCE_PATTERN_OLD  = '#^(?P<campaign_id>[0-9]{4})(?P<contact_id>[0-9]{8})$#';
-  protected static $REFERENCE_PATTERN_1296 = '#^1(?P<campaign_id>[0-9]{5})(?P<contact_id>[0-9]{9})$#';
-
-  /** stores the parsed file name */
-  protected $file_name_data = 'not parsed';
-
-  /**
-   * Check if the given handler implementation can process the record
-   *
-   * @param $record  an array of key=>value pairs
-   * @param $sourceURI
-   *
-   * @return true or false
-   */
-  public function canProcessRecord($record, $sourceURI) {
-    if ($this->file_name_data === 'not parsed') {
-      $this->file_name_data = $this->parseRetourFile($sourceURI);
-    }
-    return $this->file_name_data != NULL;
-  }
-
-  /**
-   * Process the given record
-   *
-   * @param $record  an array of key=>value pairs
-   * @param $sourceURI
-   *
-   * @return true
-   * @throws \CiviCRM_API3_Exception
-   */
-  public function processRecord($record, $sourceURI) {
-    $config = CRM_Streetimport_Config::singleton();
-    $reference = $this->getReference($record);
-
-    if (empty(trim($reference))) {
-      return $this->logger->logImport($record, FALSE, 'RTS', "Empty reference '{$reference}'");
-    }
-
-    $category    = $this->getCategory();
-    $campaign_id = $this->getCampaignID($record);
-    $contact_id  = $this->getContactID($record);
-
-    if (!$campaign_id) {
-      return $this->logger->logImport($record, FALSE, 'RTS', "Couldn't identify campaign for reference '{$reference}'");
-    }
-
-    if (!$contact_id) {
-      return $this->logger->logImport($record, FALSE, 'RTS', "Couldn't identify contact for reference '{$reference}'");
-    }
-
-    $primary_address = $this->getPrimaryAddress($contact_id, $record);
-
-    switch (strtolower($category)) {
-      case 'unused':
-      case 'incomplete':
-      case 'badcode':
-      case 'rejected':
-      case 'other':
-      case 'unknown':
-      case 'moved':
-      case 'streetrenamed':
-
-        $lastRTS = $this->findLastRTS($contact_id, $record);
-        if ($lastRTS) {
-          if (!$this->addressChangeRecordedSince($contact_id, $lastRTS['activity_date_time'], $record)) {
-            $this->increaseRTSCounter($primary_address, $record);
-          } else {
-            // address had been changed
-            // TODO: reset counter?
-          }
-        } else {
-          $this->increaseRTSCounter($primary_address, $record);
-        }
-        $this->addRTSActvity($contact_id, $category, $record);
-        break;
-
-      case 'notretrieved':
-        $this->addRTSActvity($contact_id, $category, $record);
-        break;
-
-      case 'deceased':
-        $lastDeceased = $this->findLastRTS($contact_id, $record, REPETITION_FRAME_DECEASED, 'deceased');
-        if ($lastDeceased) {
-          // there is another 'deceased' event in the last two years
-
-          // should still increase RTS counter (see GP-1593)
-          $this->increaseRTSCounter($primary_address, $record);
-
-          // set the deceased date
-          civicrm_api3('Contact', 'create', array(
-              'id'            => $contact_id,
-            // 'is_deleted'  => 1, // Marco said (27.03.2017): don't delete right away
-              'deceased_date' => $this->getDate($record),
-              'is_deceased'   => 1));
-
-        } else {
-          $this->increaseRTSCounter($primary_address, $record);
-        }
-        $this->addRTSActvity($contact_id, $category, $record);
-        break;
-
-      default:
-        $this->logger->abort("Unknown type '{$category}!", $record);
-    }
-
-    $this->logger->logImport($record, true, $config->translate('DD Contact'));
-  }
+abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streetimport_GP_Handler_GPRecordHandler {
 
   /**
    * Get the contact's primary address ID
@@ -187,7 +77,7 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       'activity_type_id'    => CRM_Streetimport_GP_Config::getResponseActivityType(),
       'target_id'           => $contact_id,
       'subject'             => $this->getRTSSubject($category),
-      'activity_date_time'  => date('YmdHis'),
+      'activity_date_time'  => $this->getDate($record),
       'campaign_id'         => $this->getCampaignID($record),
       'status_id'           => 2, // completed
       'medium_id'           => $this->getMediumID($record),
@@ -197,7 +87,8 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
       (int) $this->getContactID($record),
       $this->getCampaignID($record),
       [
-        'media' => ['letter_mail']
+        'media'                  => ['letter_mail'],
+        'exclude_activity_types' => ['Response'],
       ]
     );
     if (empty($parent_id)) {
@@ -232,13 +123,13 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
 
     $SEARCH_FRAME_CLAUSE = '';
     if ($search_frame) {
-      $SEARCH_FRAME_CLAUSE = "AND activity.activity_date_time >= " . date("YmdHis", strtotime("now - {$search_frame}"));
+      $SEARCH_FRAME_CLAUSE = "AND activity.activity_date_time >= " . date("YmdHis", strtotime("{$this->getDate($record)} - {$search_frame}"));
     }
 
     $last_rts_id = CRM_Core_DAO::singleValueQuery("
     SELECT activity.id
     FROM civicrm_activity activity
-    LEFT JOIN civicrm_activity_contact ac ON ac.activity_id = activity.id 
+    LEFT JOIN civicrm_activity_contact ac ON ac.activity_id = activity.id
     WHERE activity.activity_type_id = %1
       {$SUBJECT_CLAUSE}
       AND ac.contact_id = %3
@@ -261,11 +152,11 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   /**
    * Get category
    *
+   * @param $record
+   *
    * @return mixed
    */
-  protected function getCategory() {
-    return $this->file_name_data['category'];
-  }
+  abstract protected function getCategory($record);
 
   /**
    * Check if there has been a change since
@@ -351,10 +242,6 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
         return 'nicht angenommen';
       case 'notretrieved':
         return 'nicht behoben';
-      case 'rejected':
-        return 'nicht angenommen';
-      case 'other':
-        return 'sonstiges';
       case 'unknown':
         return 'unbekannt';
       case 'moved':
@@ -369,91 +256,52 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
   }
 
   /**
-   * Will try to parse the given name and extract the parameters outlined in TM_PATTERN
-   *
-   * @param $sourceID
-   *
-   * @return NULL if not matched, data else
-   */
-  protected function parseRetourFile($sourceID) {
-    if (preg_match(self::$FILENAME_PATTERN, basename($sourceID), $matches)) {
-      return $matches;
-    } else {
-      return NULL;
-    }
-  }
-
-  /**
    * Get the reference
    *
    * @param $record
    *
    * @return mixed
    */
-  protected function getReference($record) {
-    return CRM_Utils_Array::value('scanned_code', $record);
-  }
+  abstract protected function getReference($record);
 
   /**
-   * Extract the campaign ID from the Kundennummer
+   * Extract the campaign ID from reference
    *
    * @param $record
    *
    * @return int|null
-   * @throws \CiviCRM_API3_Exception
    */
   protected function getCampaignID($record) {
     $reference = $this->getReference($record);
-    if (preg_match(self::$REFERENCE_PATTERN_NEW, $reference, $matches)) {
+    if (preg_match($this->getReferenceFormat(), $reference, $matches)) {
       $campaign_id = ltrim($matches['campaign_id'], '0');
       return (int) $campaign_id;
-
-    } elseif (preg_match(self::$REFERENCE_PATTERN_1296, $reference, $matches)) {
-      $campaign_id = ltrim($matches['campaign_id'], '0');
-      return (int) $campaign_id;
-
-    } elseif (preg_match(self::$REFERENCE_PATTERN_OLD, $reference, $matches)) {
-      // look up campaign
-      $campaign = civicrm_api3('Campaign', 'get', array(
-        'external_identifier' => "AKTION-{$matches['campaign_id']}",
-        'return'              => 'id'));
-      if (!empty($campaign['id'])) {
-        return (int) $campaign['id'];
-      } else {
-        $this->logger->logError("Couldn't find campaign 'AKTION-{$matches['campaign_id']}'.", $record);
-        return NULL;
-      }
-    } else {
+    }
+    else {
       $this->logger->logWarning("Couldn't parse reference '{$reference}'.", $record);
       return NULL;
     }
   }
 
   /**
-   * Extract the contact ID from the Kundennummer
+   * Extract the contact ID from reference
    *
    * @param $record
+   * @param bool $returnRaw whether to return the raw ID
    *
    * @return null|string
    */
-  protected function getContactID($record) {
+  protected function getContactID($record, $returnRaw = FALSE) {
     $reference = $this->getReference($record);
-    if (preg_match(self::$REFERENCE_PATTERN_NEW, $reference, $matches)) {
+    if (preg_match($this->getReferenceFormat(), $reference, $matches)) {
       // use identity tracker
       $contact_id = ltrim($matches['contact_id'], '0');
+      if ($returnRaw) {
+        return $contact_id;
+      }
       return $this->resolveContactID($contact_id, $record);
-
-    } elseif (preg_match(self::$REFERENCE_PATTERN_1296, $reference, $matches)) {
-      // use identity tracker
-      $contact_id = ltrim($matches['contact_id'], '0');
-      return $this->resolveContactID($contact_id, $record);
-
-    } elseif (preg_match(self::$REFERENCE_PATTERN_OLD, $reference, $matches)) {
-      // use identity tracker
-      $contact_id = ltrim($matches['contact_id'], '0');
-      return $this->resolveContactID("IMB-{$contact_id}", $record, 'external');
-
-    } else {
+    }
+    else {
       $this->logger->logWarning("Couldn't parse reference '{$reference}'.", $record);
       return NULL;
     }
@@ -468,6 +316,82 @@ class CRM_Streetimport_GP_Handler_PostRetourRecordHandler extends CRM_Streetimpo
    */
   public function getMediumID($record) {
     return 5; // Letter Mail
+  }
+
+  /**
+   * Regex format of column containing campaign_id and contact_id
+   *
+   * @return string
+   */
+  protected function getReferenceFormat() {
+    return '#^1(?P<campaign_id>[0-9]{5})(?P<contact_id>[0-9]{9})$#';
+  }
+
+  /**
+   * Process a postal return
+   *
+   * @param $record
+   *
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function processReturn($record) {
+    $contact_id = $this->getContactID($record);
+    $category = $this->getCategory($record);
+    $primary_address = $this->getPrimaryAddress($contact_id, $record);
+
+    switch (strtolower($category)) {
+      case 'unused':
+      case 'incomplete':
+      case 'badcode':
+      case 'rejected':
+      case 'other':
+      case 'unknown':
+      case 'moved':
+      case 'streetrenamed':
+        // find parent activity
+        $parent_activity = $this->getParentActivity(
+          (int) $this->getContactID($record),
+          $this->getCampaignID($record),
+          [
+            'media'                  => ['letter_mail'],
+            'exclude_activity_types' => ['Response'],
+          ]
+        );
+        if (empty($parent_activity)) {
+          // no parent activity found, continue with last RTS activity
+          $parent_activity = $this->findLastRTS($contact_id, $record);
+        }
+        if (!empty($parent_activity)) {
+          if (!$this->addressChangeRecordedSince($contact_id, $parent_activity['activity_date_time'], $record)) {
+            // address hasn't changed since letter was sent
+            $this->increaseRTSCounter($primary_address, $record);
+          }
+        } else {
+          $this->increaseRTSCounter($primary_address, $record);
+        }
+        $this->addRTSActvity($contact_id, $category, $record);
+        break;
+
+      case 'notretrieved':
+        $this->addRTSActvity($contact_id, $category, $record);
+        break;
+
+      case 'deceased':
+        $lastDeceased = $this->findLastRTS($contact_id, $record, REPETITION_FRAME_DECEASED, 'deceased');
+        if ($lastDeceased) {
+          // there is another 'deceased' event in the last two years
+          // set the deceased date
+          civicrm_api3('Contact', 'create', array(
+            'id'            => $contact_id,
+            // 'is_deleted'  => 1, // Marco said (27.03.2017): don't delete right away
+            'deceased_date' => $this->getDate($record),
+            'is_deceased'   => 1));
+
+        }
+        $this->increaseRTSCounter($primary_address, $record);
+        $this->addRTSActvity($contact_id, $category, $record);
+        break;
+    }
   }
 
 }

@@ -674,8 +674,9 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * Always returns the most recent matching activity.
    *
    * Supported filters include:
-   *  - activity_types: array of activity type names
-   *  - media: array of medium names
+   *  - activity_types: array of activity type names (SQL IN ())
+   *  - exclude_activity_types: array of activity type names to exclude (SQL NOT IN ())
+   *  - media: array of medium names (SQL IN ())
    *  - min_date: earliest possible activity date
    *  - max_date: latest possible activity_date
    *
@@ -690,6 +691,12 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     if (array_key_exists('activity_types', $filters)) {
       foreach ($filters['activity_types'] as $activity_type) {
         $activity_types_resolved[] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', $activity_type);
+      }
+    }
+    $exclude_activity_types_resolved = [];
+    if (array_key_exists('exclude_activity_types', $filters)) {
+      foreach ($filters['exclude_activity_types'] as $activity_type) {
+        $exclude_activity_types_resolved[] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'activity_type_id', $activity_type);
       }
     }
     $media_resolved = [];
@@ -708,6 +715,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $param_count++;
       $optionalFilters .= " AND a.activity_type_id IN (%{$param_count})";
       $params[$param_count] = [implode(',', $activity_types_resolved), 'String'];
+    }
+    if (count($exclude_activity_types_resolved) > 0) {
+      $param_count++;
+      $optionalFilters .= " AND a.activity_type_id NOT IN (%{$param_count})";
+      $params[$param_count] = [implode(',', $exclude_activity_types_resolved), 'String'];
     }
     if (count($media_resolved) > 0) {
       $param_count++;
@@ -734,6 +746,29 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       LIMIT 1",
       $params
     );
+  }
+
+  /**
+   * Get parent activity data
+   *
+   * @param $contact_id
+   * @param $campaign_id
+   * @param array $filters
+   *
+   * @see self::getParentActivityId()
+   *
+   * @return array|null
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function getParentActivity($contact_id, $campaign_id, array $filters = []) {
+    $parent_id = $this->getParentActivityId($contact_id, $campaign_id, $filters);
+    if (!empty($parent_id)) {
+      return civicrm_api3('Activity', 'getsingle', [
+        'id' => $parent_id,
+      ]);
+    }
+    return NULL;
+
   }
 
   /**
@@ -1067,4 +1102,22 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       }
     }
   }
+
+  /**
+   * Check whether a given contact_id is in trash
+   *
+   * This is a best-effort attempt, it doesn't handle identitytracker IDs
+   *
+   * @param $contact_id
+   *
+   * @return bool
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function isDeletedContact($contact_id) {
+    return civicrm_api3('Contact', 'getcount', [
+      'id'         => $contact_id,
+      'is_deleted' => TRUE,
+    ]) == 1;
+  }
+
 }
