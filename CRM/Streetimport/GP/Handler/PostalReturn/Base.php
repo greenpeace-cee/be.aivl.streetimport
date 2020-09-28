@@ -18,24 +18,28 @@ define('REPETITION_FRAME_DECEASED', "2 years");
 abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streetimport_GP_Handler_GPRecordHandler {
 
   /**
-   * Get the contact's primary address ID
+   * Get the contact's primary address
    *
    * @param $contact_id
    * @param $record
    *
-   * @return mixed|null
+   * @return array|null
    * @throws \CiviCRM_API3_Exception
    */
   protected function getPrimaryAddress($contact_id, $record) {
     $config      = CRM_Streetimport_Config::singleton();
     $rts_counter = $config->getGPCustomFieldKey('rts_counter');
     $addresses = civicrm_api3('Address', 'get', array(
-      'is_primary'   => 1,
-      'contact_id'   => $contact_id,
-      'return'       => "{$rts_counter},contact_id,id",
-      'option.limit' => 1));
+      'is_primary'            => 1,
+      'contact_id'            => $contact_id,
+      'return'                => "{$rts_counter},contact_id,id,street_address,city,supplemental_address_2,state_province_id,postal_code,country_id",
+      'api.Contact.getsingle' => ['id' => '$value.contact_id', 'return' => ['first_name', 'last_name']],
+      'option.limit'          => 1));
     if ($addresses['count'] == 1) {
-      return reset($addresses['values']);
+      $address =  reset($addresses['values']);
+      $address['first_name'] = $address['api.Contact.getsingle']['first_name'];
+      $address['last_name'] = $address['api.Contact.getsingle']['last_name'];
+      return $address;
     } else {
       $this->logger->logError("Primary address for contact [{$contact_id}] not found. Couldn't update RTS counter.", $record);
       return NULL;
@@ -328,6 +332,68 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
   }
 
   /**
+   * Does the given return record contain the original address data?
+   * (post.at Retourendatei with Kundenadresse)
+   *
+   * @param array $record
+   *
+   * @return bool
+   */
+  protected function isReturnWithFullAddress(array $record) {
+    $requiredFields = ['Strasse', 'PLZ', 'Ort'];
+    foreach ($requiredFields as $requiredField) {
+      if (!array_key_exists($requiredField, $record) || empty(trim($record[$requiredField]))) {
+        return FALSE;
+      }
+    }
+    return TRUE;
+  }
+
+  /**
+   * Normalize address data by lowercasing, replacing umlauts and converting to ASCII
+   *
+   * @param $value
+   *
+   * @return false|string
+   */
+  protected function normalizeAddressField($value) {
+    // some letter shops encode austrian umlauts as ae/oe, which translit to
+    // ASCII may not do, so we do this explicitly for common characters
+    $search = ['ä', 'ö', 'ü', 'ß'];
+    $replace = ['ae', 'oe', 'ue', 'ss'];
+    $value = trim(strtolower($value));
+    $value = str_replace($search, $replace, $value);
+    $value = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+    return $value;
+  }
+
+  /**
+   * Determine whether $originalAddress differs from $returnAddress
+   *
+   * Values are compared as lower-case in ASCII
+   *
+   * @param array $originalAddress
+   * @param array $returnAddress
+   *
+   * @return bool
+   */
+  protected function addressChanged(array $originalAddress, array $returnAddress) {
+    $mapReturnToOriginal = [
+      'Strasse'  => 'street_address',
+      'PLZ'      => 'postal_code',
+      'Ort'      => 'city',
+    ];
+    foreach ($mapReturnToOriginal as $returnField => $originalField) {
+      $returnValue = $this->normalizeAddressField($returnAddress[$returnField]);
+      $originalValue = $this->normalizeAddressField($originalAddress[$originalField]);
+      if ($returnValue != $originalValue) {
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
    * Process a postal return
    *
    * @param $record
@@ -338,8 +404,37 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
     $contact_id = $this->getContactID($record);
     $category = $this->getCategory($record);
     $primary_address = $this->getPrimaryAddress($contact_id, $record);
+    // whether to increase RTS counter where appropriate
+    $increaseCounter = TRUE;
+    // find parent activity
+    $parent_activity = $this->getParentActivity(
+      (int) $this->getContactID($record),
+      $this->getCampaignID($record),
+      [
+        'media'                  => ['letter_mail'],
+        'exclude_activity_types' => ['Response'],
+      ]
+    );
+    if (empty($parent_activity)) {
+      // no parent activity found, continue with last RTS activity
+      $parent_activity = $this->findLastRTS($contact_id, $record);
+    }
+    if ($this->isReturnWithFullAddress($record)) {
+      if ($this->addressChanged($primary_address, $record)) {
+        $this->logger->logDebug("Skipping RTS increase due to return address diff for contact [{$contact_id}].", $record);
+        $increaseCounter = FALSE;
+      }
+    }
+    elseif (!empty($parent_activity) && $this->addressChangeRecordedSince($contact_id, $parent_activity['activity_date_time'], $record)) {
+      $this->logger->logDebug("Skipping RTS increase due to logged address change for contact [{$contact_id}].", $record);
+      $increaseCounter = FALSE;
+    }
 
     switch (strtolower($category)) {
+      case 'notretrieved':
+        // GP-5232: this does not indicate an invalid address
+        $increaseCounter = FALSE;
+        // No break
       case 'unused':
       case 'incomplete':
       case 'badcode':
@@ -348,31 +443,6 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
       case 'unknown':
       case 'moved':
       case 'streetrenamed':
-        // find parent activity
-        $parent_activity = $this->getParentActivity(
-          (int) $this->getContactID($record),
-          $this->getCampaignID($record),
-          [
-            'media'                  => ['letter_mail'],
-            'exclude_activity_types' => ['Response'],
-          ]
-        );
-        if (empty($parent_activity)) {
-          // no parent activity found, continue with last RTS activity
-          $parent_activity = $this->findLastRTS($contact_id, $record);
-        }
-        if (!empty($parent_activity)) {
-          if (!$this->addressChangeRecordedSince($contact_id, $parent_activity['activity_date_time'], $record)) {
-            // address hasn't changed since letter was sent
-            $this->increaseRTSCounter($primary_address, $record);
-          }
-        } else {
-          $this->increaseRTSCounter($primary_address, $record);
-        }
-        $this->addRTSActvity($contact_id, $category, $record);
-        break;
-
-      case 'notretrieved':
         $this->addRTSActvity($contact_id, $category, $record);
         break;
 
@@ -381,16 +451,18 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
         if ($lastDeceased) {
           // there is another 'deceased' event in the last two years
           // set the deceased date
-          civicrm_api3('Contact', 'create', array(
+          civicrm_api3('Contact', 'create', [
             'id'            => $contact_id,
             // 'is_deleted'  => 1, // Marco said (27.03.2017): don't delete right away
             'deceased_date' => $this->getDate($record),
-            'is_deceased'   => 1));
-
+            'is_deceased'   => 1
+          ]);
         }
-        $this->increaseRTSCounter($primary_address, $record);
         $this->addRTSActvity($contact_id, $category, $record);
         break;
+    }
+    if ($increaseCounter) {
+      $this->increaseRTSCounter($primary_address, $record);
     }
   }
 
