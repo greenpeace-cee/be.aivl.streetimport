@@ -1,0 +1,14 @@
+{
+    "name": "greenpeace-cee/be.aivl.streetimport",
+    "type": "project",
+    "license": "AGPL-3.0",
+    "authors": [
+        {
+            "name": "Patrick Figel",
+            "email": "pfigel@greenpeace.org"
+        }
+    ],
+    "require": {
+        "tdely/luhn": "^1.0"
+    }
+}

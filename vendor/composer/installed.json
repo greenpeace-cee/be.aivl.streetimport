@@ -1,0 +1,51 @@
+{
+    "packages": [
+        {
+            "name": "tdely/luhn",
+            "version": "v1.0.0",
+            "version_normalized": "1.0.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://gitlab.com/tdely/luhn-php.git",
+                "reference": "d75f9c268c5e5fa38d913bd879330634432e6e95"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.com/api/v4/projects/tdely%2Fluhn-php/repository/archive.zip?sha=d75f9c268c5e5fa38d913bd879330634432e6e95",
+                "reference": "d75f9c268c5e5fa38d913bd879330634432e6e95",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.0"
+            },
+            "time": "2018-10-12T10:43:47+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Tdely\\Luhn\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Unlicense"
+            ],
+            "authors": [
+                {
+                    "name": "Tobias Dély",
+                    "email": "cleverhatcamouflage@gmail.com"
+                }
+            ],
+            "description": "PHP implementation of the Luhn algorithm.",
+            "homepage": "https://gitlab.com/tdely/luhn-php",
+            "keywords": [
+                "credit card",
+                "identification number",
+                "imei",
+                "luhn"
+            ],
+            "install-path": "../tdely/luhn"
+        }
+    ],
+    "dev": true
+}
