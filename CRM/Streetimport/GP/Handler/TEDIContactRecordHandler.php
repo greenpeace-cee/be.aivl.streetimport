@@ -6,48 +6,6 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
-define('TM_KONTAKT_RESPONSE_OFFF_SPENDE',            3);
-
-define('TM_KONTAKT_RESPONSE_ZUSAGE_FOERDER',         1);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_GUARDIAN',       51);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_FLOTTE',         53);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_ARKTIS',         54);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_DETOX',          55);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_WAELDER',        57);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_GP4ME',          58);
-define('TM_KONTAKT_RESPONSE_ZUSAGE_ATOM',           59);
-
-define('TM_KONTAKT_RESPONSE_KONTAKT_STORNO_ZS',     30);
-define('TM_KONTAKT_RESPONSE_KONTAKT_STORNO_ZSO',    31);
-define('TM_KONTAKT_RESPONSE_KONTAKT_STORNO_SMS',    32);
-define('TM_KONTAKT_RESPONSE_KONTAKT_STORNO_DONE',   33);
-
-define('TM_KONTAKT_RESPONSE_KONTAKT_RESCUE',        24);
-define('TM_KONTAKT_RESPONSE_KONTAKT_LOESCHEN',      25);
-define('TM_KONTAKT_RESPONSE_KONTAKT_STILLEGEN',     26);
-define('TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN',    27);
-define('TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN',    40);
-define('TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE',   41);
-
-define('TM_KONTAKT_RESPONSE_KONTAKT_KEIN_ANSCHLUSS',    90);
-define('TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ERREICHT',    91);
-define('TM_KONTAKT_RESPONSE_KONTAKT_KEIN_KONTAKT',      92);
-define('TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ANGEGRIFFEN', 93);
-define('TM_KONTAKT_RESPONSE_POTENTIAL_IDENTITY_CHANGE', 94);
-
-
-
-define('TM_PROJECT_TYPE_CONVERSION',   'umw'); // Umwandlung
-define('TM_PROJECT_TYPE_UPGRADE',      'upg'); // Upgrade
-define('TM_PROJECT_TYPE_REACTIVATION', 'rea'); // Reaktivierung
-define('TM_PROJECT_TYPE_RESEARCH',     'rec'); // Recherche
-define('TM_PROJECT_TYPE_SURVEY',       'umf'); // Umfrage
-define('TM_PROJECT_TYPE_LEGACY',       'leg'); // Legacy
-define('TM_PROJECT_TYPE_MIDDLE_DONOR', 'mdu'); // Middle-Donor - two subtypes:
-define('TM_PROJECT_TYPE_MD_UPGRADE',   'mdup');//     subtype 1: upgrade
-define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umwandlung)
-
-
 /**
  * GP TEDI Handler
  *
@@ -1205,28 +1163,6 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         );
         break;
     }
-  }
-
-  protected function assembleResponseSubject($responseCode, $responseText) {
-    $responseCode = str_pad($responseCode, 2, '0', STR_PAD_LEFT);
-    return trim("{$responseCode} {$responseText}");
-  }
-
-  /**
-   * Does $responseCode indicate that the contact was reached?
-   *
-   * @param $responseCode
-   *
-   * @return bool
-   */
-  protected function isContactReachedResponse($responseCode) {
-    $noContactResponses = [
-      TM_KONTAKT_RESPONSE_KONTAKT_KEIN_ANSCHLUSS,
-      TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ERREICHT,
-      TM_KONTAKT_RESPONSE_KONTAKT_KEIN_KONTAKT,
-      TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ANGEGRIFFEN,
-    ];
-    return !in_array($responseCode, $noContactResponses);
   }
 
 }

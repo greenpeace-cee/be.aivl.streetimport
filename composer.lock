@@ -1,0 +1,62 @@
+{
+    "_readme": [
+        "This file locks the dependencies of your project to a known state",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
+        "This file is @generated automatically"
+    ],
+    "content-hash": "4ac394caf7b39a319b793efe1bbb4226",
+    "packages": [
+        {
+            "name": "tdely/luhn",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://gitlab.com/tdely/luhn-php.git",
+                "reference": "d75f9c268c5e5fa38d913bd879330634432e6e95"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.com/api/v4/projects/tdely%2Fluhn-php/repository/archive.zip?sha=d75f9c268c5e5fa38d913bd879330634432e6e95",
+                "reference": "d75f9c268c5e5fa38d913bd879330634432e6e95",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Tdely\\Luhn\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Unlicense"
+            ],
+            "authors": [
+                {
+                    "name": "Tobias Dély",
+                    "email": "cleverhatcamouflage@gmail.com"
+                }
+            ],
+            "description": "PHP implementation of the Luhn algorithm.",
+            "homepage": "https://gitlab.com/tdely/luhn-php",
+            "keywords": [
+                "credit card",
+                "identification number",
+                "imei",
+                "luhn"
+            ],
+            "time": "2018-10-12T10:43:47+00:00"
+        }
+    ],
+    "packages-dev": [],
+    "aliases": [],
+    "minimum-stability": "stable",
+    "stability-flags": [],
+    "prefer-stable": false,
+    "prefer-lowest": false,
+    "platform": [],
+    "platform-dev": [],
+    "plugin-api-version": "2.0.0"
+}
