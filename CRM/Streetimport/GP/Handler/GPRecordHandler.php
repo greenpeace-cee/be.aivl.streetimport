@@ -733,7 +733,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     }
     if (array_key_exists('max_date', $filters) && !is_null($filters['max_date'])) {
       $param_count++;
-      $optionalFilters .= " AND DATE(a.activity_date_time) < %{$param_count}";
+      $optionalFilters .= " AND DATE(a.activity_date_time) <= %{$param_count}";
       $params[$param_count] = [$filters['max_date'], 'String'];
     }
     return CRM_Core_DAO::singleValueQuery("SELECT a.id
