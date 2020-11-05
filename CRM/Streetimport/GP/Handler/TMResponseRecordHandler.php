@@ -42,8 +42,8 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
         return $this->logger->logError("Missing value for field {$field}.", $record);
       }
     }
-    $date = DateTime::createFromFormat('d.m.Y', $record['responsedatum']);
-    if (!$date || $date->format('d.m.Y') != $record['responsedatum']) {
+    $date = DateTime::createFromFormat('d.m.Y H:i', $record['responsedatum']);
+    if (!$date || $date->format('d.m.Y H:i') != $record['responsedatum']) {
       $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
       return $this->logger->logError("Invalid date value {$record['responsedatum']} in field 'responsedatum'.", $record);
     }
