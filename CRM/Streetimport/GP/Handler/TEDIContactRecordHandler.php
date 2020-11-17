@@ -1147,7 +1147,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
             'subject'             => $subject,
             'activity_type_id'    => $config->getOutgoingCallActivityType(),
             'status_id'           => 1, // Scheduled
-            'campaign_id'         => $this->getCampaignID($record),
+            'campaign_id'         => $data['campaign_id'] ?? $this->getCampaignID($record),
             'activity_date_time'  => $this->getDate($record),
             'source_contact_id'   => (int) $config->getCurrentUserID(),
             'target_contact_id'   => (int) $contact_id,
