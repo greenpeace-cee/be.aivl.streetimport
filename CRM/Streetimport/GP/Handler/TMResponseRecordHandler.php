@@ -125,6 +125,13 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
       return $this->logger->logError("Expected to find membership in column formular_nr for response '{$record['response']}'.", $record);
     }
 
+    // HACK: convert "27 Nicht kontaktieren" to "41 Anrufsperre Kontakt"
+    if ((int) $response['code'] == TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN) {
+      $record['response'] = TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE . ' Anrufsperre Kontakt';
+      $response['code'] = TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE;
+      $response['text'] = 'Anrufsperre Kontakt';
+    }
+
     // ############# PROCESS #############
     switch ((int) $response['code']) {
       case TM_KONTAKT_RESPONSE_ZUSAGE_FOERDER:
@@ -141,6 +148,13 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
 
       case TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN:
         $this->disableContact($contact_id, 'deactivate', $record);
+        break;
+
+      case TM_KONTAKT_RESPONSE_KONTAKT_ANRUFSPERRE:
+        civicrm_api3('Contact', 'create', [
+          'id'           => $contact_id,
+          'do_not_phone' => 1
+        ]);
         break;
 
       case TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN:
