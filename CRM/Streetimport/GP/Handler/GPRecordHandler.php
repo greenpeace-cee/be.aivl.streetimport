@@ -393,27 +393,6 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $this->_contract_changes_produced = TRUE;
     $this->logger->logDebug("Update for membership [{$contract_id}] scheduled.", $record);
 
-
-
-    // STEP 2: STOP OLD MANDATE RIGHT AWAY IF REQUESTED
-    if (isset($record['weiterbuchen']) && $record['weiterbuchen']=='0') {
-      $old_recurring_contribution_id = civicrm_api3('Membership', 'getvalue', array(
-        'id'     => $contract_id,
-        'return' => $config->getGPCustomFieldKey('membership_recurring_contribution')));
-      $old_mandate_id = civicrm_api3('SepaMandate', 'get', array(
-        'entity_id'    => $old_recurring_contribution_id,
-        'entity_table' => 'civicrm_contribution_recur',
-        'return'       => 'id'));
-      if (!empty($old_mandate_id['id'])) {
-        CRM_Sepa_BAO_SEPAMandate::terminateMandate($old_mandate_id['id'], $now, 'CHNG');
-        CRM_Sepa_Logic_Batching::closeEnded();
-        $this->logger->logDebug("SEPA mandate for membership [{$contract_id}] terminated right away on request.", $record);
-      } else {
-        $this->logger->logError("No mandate attached to membership [{$contract_id}], couldn't stop!", $record);
-      }
-    }
-
-
     // STEP 3: SCHEDULE END IF REQUESTED
 
     if (!empty($record['EinzugsEndeDatum'])) {
