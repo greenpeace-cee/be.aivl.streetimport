@@ -91,8 +91,23 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
       (int) $this->getContactID($record),
       $this->getCampaignID($record),
       [
-        'media'                  => ['letter_mail'],
-        'exclude_activity_types' => ['Response'],
+        'exclude_activity_types' => [
+          'Response',
+          'Contribution',
+          'Petition',
+          'Contract_Signed',
+          'Contract_Paused',
+          'Contract_Resumed',
+          'Contract_Updated',
+          'Contract_Revived',
+          'Contract_Cancelled',
+          'contact_updated',
+          'contact_called',
+          'Exclusion Record',
+          'Online_Mailing',
+          'Bounce',
+          'UTM Tracking',
+        ],
       ]
     );
     if (empty($parent_id)) {
