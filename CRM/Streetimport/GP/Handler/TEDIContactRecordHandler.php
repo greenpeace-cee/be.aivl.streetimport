@@ -1187,6 +1187,30 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
             return;
         }
         break;
+
+      case 'webshop_order':
+        if (!empty($data['order_status']) && !in_array($data['order_status'], ['Scheduled', 'Completed'])) {
+          $this->logger->logError('Unknown order_status "' . $data['order_status'] . '" in webshop_order JSON payload.', $record);
+          return;
+        }
+        $status_id = $config->getActivityScheduledStatusId();
+        if ($data['order_status'] ?? NULL == 'Completed') {
+          $status_id = $config->getActivityCompleteStatusId();
+        }
+        $this->createWebshopActivity($contact_id, $record, [
+          $config->getGPCustomFieldKey('order_type')        => $data['order_type'],
+          $config->getGPCustomFieldKey('order_count')       => $data['order_count'] ?? 1,
+          $config->getGPCustomFieldKey('shirt_type')        => $data['shirt_type'] ?? NULL,
+          $config->getGPCustomFieldKey('shirt_size')        => $data['shirt_size'] ?? NULL,
+          $config->getGPCustomFieldKey('free_order')        => $data['free_order'] ?? 0,
+          $config->getGPCustomFieldKey('linked_membership') => $contract_id,
+          'status_id'                                       => $status_id,
+        ]);
+        break;
+
+      default:
+        $this->logger->logError('Unknown action "' . $data['action'] . '" in JSON payload.', $record);
+        return;
     }
   }
 

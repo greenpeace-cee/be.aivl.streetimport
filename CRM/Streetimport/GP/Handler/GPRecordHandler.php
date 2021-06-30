@@ -916,12 +916,14 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $activityParams = array(
       'activity_type_id'    => $this->_webshop_order_activity_id,
       'subject'             => CRM_Utils_Array::value('subject', $data, 'Webshop Order'),
-      'status_id'           => $config->getActivityScheduledStatusId(),
+      'status_id'           => $data['status_id'] ?? $config->getActivityScheduledStatusId(),
       'campaign_id'         => $this->getCampaignID($record),
       'activity_date_time'  => $this->getDate($record),
       'source_contact_id'   => (int) $config->getCurrentUserID(),
       'target_contact_id'   => (int) $contact_id,
     );
+
+    unset($data['status_id']);
 
     $this->createActivity($activityParams + $data, $record);
   }
