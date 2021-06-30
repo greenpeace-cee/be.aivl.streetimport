@@ -1162,6 +1162,31 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           $record
         );
         break;
+
+      case 'modify_group':
+        $group = CRM_Streetimport_Utils::getGroupWithName($data['group_name']);
+        if (empty($group['id'])) {
+          $this->logger->logError('Unknown group "' . $data['group_name'] . '" in modify_group JSON payload.', $record);
+          return;
+        }
+        switch ($data['type']) {
+          case 'add':
+            $this->addContactToGroup($contact_id, $group['id'], $record);
+            break;
+
+          case 'remove':
+            $this->removeContactFromGroup($contact_id, $group['id'], $record);
+            break;
+
+          case 'delete':
+            $this->deleteContactFromGroup($contact_id, $group['id'], $record);
+            break;
+
+          default:
+            $this->logger->logError('Unknown type "' . $data['type'] . '" in modify_group JSON payload.', $record);
+            return;
+        }
+        break;
     }
   }
 
