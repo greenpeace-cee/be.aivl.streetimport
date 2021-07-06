@@ -1,4 +1,7 @@
 <?php
+
+use Civi\Api4\GroupContact;
+
 /**
  * Abstract class to handle the individual records
  *
@@ -454,6 +457,26 @@ abstract class CRM_Streetimport_RecordHandler {
     } catch (CiviCRM_API3_Exception $ex) {
       $config = CRM_Streetimport_Config::singleton();
       $this->logger->logError($config->translate('Error from API GroupContact Create').': '.$ex->getMessage(), $record);
+      return NULL;
+    }
+  }
+
+  protected function deleteContactFromGroup($contactId, $groupId, $record) {
+    if (empty($contactId) || empty($groupId)) {
+      $config = CRM_Streetimport_Config::singleton();
+      $this->logger->logError($config->translate('Empty contact_id or group_id, could not remove contact from group'), $record);
+      return NULL;
+    }
+    try {
+      GroupContact::delete()
+        ->addWhere('group_id', '=', $groupId)
+        ->addWhere('contact_id', '=', $contactId)
+        ->setCheckPermissions(FALSE)
+        ->execute();
+    }
+    catch (API_Exception $e) {
+      $config = CRM_Streetimport_Config::singleton();
+      $this->logger->logError($config->translate('Error from API4 GroupContact delete').': '.$e->getMessage(), $record);
       return NULL;
     }
   }
