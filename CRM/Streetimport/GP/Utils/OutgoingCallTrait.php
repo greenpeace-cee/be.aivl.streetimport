@@ -68,6 +68,10 @@ trait CRM_Streetimport_GP_Utils_OutgoingCallTrait {
       'start_date' => 'Start Date',
       'frequency' => function($data) {
         if (!empty($data['frequency'])) {
+          if ($data['frequency'] == '-1') {
+            // one-off is sent as -1, but OptionValue for one-off is 0
+            $data['frequency'] = 0;
+          }
           $frequency = OptionValue::get()
             ->setSelect([
               'label',
