@@ -6,6 +6,8 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
+use Civi\Api4\Contact;
+
 /**
  * GP TEDI Handler
  *
@@ -1212,6 +1214,39 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         $this->logger->logError('Unknown action "' . $data['action'] . '" in JSON payload.', $record);
         return;
     }
+  }
+
+  /**
+   * Get activity assignee for provided TDMitarbeiter
+   *
+   * @param $record
+   *
+   * @return null
+   */
+  protected function getAssignee($record) {
+    if (empty($record['TDMitarbeiter'])) {
+      return NULL;
+    }
+    $dialogerId = 'TEDI-' . $record['TDMitarbeiter'];
+    $dialoger = Contact::get(FALSE)
+      ->addSelect('id')
+      ->addWhere('contact_sub_type:name', '=', 'Dialoger')
+      ->addWhere('dialoger_data.dialoger_id', '=', $dialogerId)
+      ->execute()
+      ->first();
+    if (empty($dialoger['id'])) {
+      $dialoger = Contact::create(FALSE)
+        ->addValue('contact_type', 'Individual')
+        ->addValue('contact_sub_type:name', [
+          'Dialoger',
+        ])
+        ->addValue('dialoger_data.dialoger_id', $dialogerId)
+        ->addValue('display_name', 'TEDI Agent ' . $record['TDMitarbeiter'])
+        ->execute()
+        ->first();
+
+    }
+    return $dialoger['id'];
   }
 
 }
