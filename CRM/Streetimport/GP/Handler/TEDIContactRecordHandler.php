@@ -1153,7 +1153,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
             'target_contact_id'   => (int) $contact_id,
             'medium_id'           => $this->getMediumID($record),
             'details'             => $this->generateOutgoingCallDetails(
-              'The contact has requested a BMF move. Please verify the details with the contact and perform the move.',
+              '<p>Dieser Kontakt hat einen BMF Move angefordert:</p><ul><li>Bitte best&auml;tige die Details mit der Person und &auml;ndere die Kontaktdaten entsprechend</li><li>Initiiere ggf. eine&nbsp;BMFSA Korrektur</li><li><strong>Erstelle oder &auml;ndere den Vertrag bzw. Einmaleinzug</strong></li></ul>',
               $data,
               $contact_id,
               $contract_id
