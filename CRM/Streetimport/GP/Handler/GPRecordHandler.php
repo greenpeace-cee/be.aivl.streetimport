@@ -491,6 +491,17 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
   }
 
   /**
+   * Get activity assignee corresponding to $record
+   *
+   * @param $record
+   *
+   * @return null
+   */
+  protected function getAssignee($record) {
+    return NULL;
+  }
+
+  /**
    * check if the given contract is still active
    */
   public function isContractActive($membership) {
@@ -883,6 +894,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'source_contact_id'   => (int) $config->getCurrentUserID(),
       'target_contact_id'   => (int) $contact_id,
       'medium_id'           => $this->getMediumID($record),
+      'assignee_contact_id' => $this->getAssignee($record),
     );
 
     $activity = $this->createActivity($activityParams, $record);
