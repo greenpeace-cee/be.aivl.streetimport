@@ -170,6 +170,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       case TM_KONTAKT_RESPONSE_ZUSAGE_ATOM:
       case TM_KONTAKT_RESPONSE_KONTAKT_RESCUE:
       case TM_KONTAKT_RESPONSE_ZUSAGE_GUARDIAN:
+      case TM_KONTAKT_RESPONSE_ZUSAGE_BIODIV:
         // this is a conversion/upgrade
         $contract_id = $this->getContractID($contact_id, $record);
         if (empty($contract_id)) {
@@ -851,6 +852,9 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         $name = 'Guardian of the Ocean';
         break;
 
+      case TM_KONTAKT_RESPONSE_ZUSAGE_BIODIV:
+        $name = 'Biodiversitätsprodukt';
+        break;
 
       default:
         $this->logger->logError("No membership type can be derived from result code (Ergebnisnummer) '{$record['Ergebnisnummer']}'.", $record);
