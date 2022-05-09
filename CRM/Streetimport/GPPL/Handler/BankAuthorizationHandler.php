@@ -53,6 +53,7 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
       'membership_id' => $record['membership_id'],
     ]);
     if ($membership['count'] == 0) {
+      $this->logger->logError($config->translate('Membership not found'), $record);
       $this->logger->logImport($record, FALSE, $config->translate('Bank Authorization'), $config->translate('Membership not found'));
       return;
     }
@@ -80,6 +81,7 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
           $this->logger->logImport($record, TRUE, $config->translate('Bank Authorization'), $config->translate('Ignoring, Membership is already active'));
         }
         else {
+          $this->logger->logError($config->translate('Membership is in an undefined state (' . $membership['status_id'] . ')'), $record);
           $this->logger->logImport($record, FALSE, $config->translate('Bank Authorization'), $config->translate('Membership is in an undefined state'));
         }
       }
@@ -102,11 +104,13 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
           $this->logger->logImport($record, TRUE, $config->translate('Bank Authorization'), $config->translate('Cancelled Membership'));
         }
         else {
+          $this->logger->logError($config->translate('Membership is in an undefined state (' . $membership['status_id'] . ')'), $record);
           $this->logger->logImport($record, FALSE, $config->translate('Bank Authorization'), $config->translate('Membership is in an undefined state (' . $membership['status_id'] . ')'));
         }
       }
     }
     catch (CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException $e) {
+      $this->logger->logError('Error: ' . $e->getMessage(), $record);
       $this->logger->logImport($record, FALSE, $config->translate('Bank Authorization'), 'Error: ' . $e->getMessage());
       return;
     }
