@@ -488,7 +488,17 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
         break;
 
       default:
-        $this->logger->logError("Unknown Vertragstyp '{$value}', assuming 'Förderer'.", $record);
+        $membershipType = \Civi\Api4\MembershipType::get(FALSE)
+          ->selectRowCount()
+          ->addWhere('name', '=', $value)
+          ->execute()
+          ->count();
+        if (!$membershipType) {
+          $this->logger->logError("Unknown Vertragstyp '{$value}', assuming 'Förderer'.", $record);
+        }
+        else {
+          $membership_type_name = $value;
+        }
         break;
     }
 
