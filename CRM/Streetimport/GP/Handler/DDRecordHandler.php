@@ -224,7 +224,17 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
         break;
 
       default:
-        $this->logger->logError("Unknown Interesse2 '{$interesse_2}'. Ignored.", $record);
+        $group = \Civi\Api4\Group::get(FALSE)
+          ->selectRowCount()
+          ->addWhere('title', '=', $interesse_2)
+          ->execute()
+          ->count();
+        if (!$group) {
+          $this->logger->logError("Unknown Interesse2 '{$interesse_2}'. Ignored.", $record);
+        }
+        else {
+          $this->addContactToGroup($contact_id, $config->getGPGroupID($interesse_2), $record);
+        }
         break;
     }
 
