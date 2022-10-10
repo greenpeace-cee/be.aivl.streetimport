@@ -48,6 +48,7 @@ define('TM_PROJECT_TYPE_LEGACY',       'leg'); // Legacy
 define('TM_PROJECT_TYPE_MIDDLE_DONOR', 'mdu'); // Middle-Donor - two subtypes:
 define('TM_PROJECT_TYPE_MD_UPGRADE',   'mdup');//     subtype 1: upgrade
 define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umwandlung)
+define('TM_PROJECT_TYPE_POSTALRETURN', 'rts'); // Recherche
 
 /**
  * Abstract class bundle common GP importer functions

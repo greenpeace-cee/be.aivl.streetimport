@@ -105,6 +105,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         // Nothing to do here?
         break;
 
+      case TM_PROJECT_TYPE_POSTALRETURN:
+        // no-op
+        break;
+
       case TM_PROJECT_TYPE_LEGACY:
         $case_count = civicrm_api3('Case', 'getcount', [
           'case_type_id' => 'legat',
