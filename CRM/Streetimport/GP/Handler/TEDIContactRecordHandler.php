@@ -17,6 +17,11 @@ use Civi\Api4\Contact;
 class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimport_GP_Handler_TMRecordHandler {
   use CRM_Streetimport_GP_Utils_OutgoingCallTrait;
 
+  const TM_COMPANIES = [
+    'tedi',
+    'telepower',
+  ];
+
   /**
    * Check if the given handler implementation can process the record
    *
@@ -25,7 +30,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
    */
   public function canProcessRecord($record, $sourceURI) {
     $parsedFileName = $this->parseTmFile($sourceURI);
-    return ($parsedFileName && $parsedFileName['file_type'] == 'Kontakte' && $parsedFileName['tm_company'] == 'tedi');
+    return ($parsedFileName && $parsedFileName['file_type'] == 'Kontakte' && in_array($parsedFileName['tm_company'], self::TM_COMPANIES));
   }
 
   /**
@@ -1235,7 +1240,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     if (empty($record['TDMitarbeiter'])) {
       return NULL;
     }
-    $dialogerId = 'TEDI-' . $record['TDMitarbeiter'];
+    $prefix = strtoupper($this->file_name_data['tm_company']);
+    $dialogerId =  $prefix .'-' . $record['TDMitarbeiter'];
     $dialoger = Contact::get(FALSE)
       ->addSelect('id')
       ->addWhere('contact_sub_type:name', '=', 'Dialoger')
@@ -1249,7 +1255,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           'Dialoger',
         ])
         ->addValue('dialoger_data.dialoger_id', $dialogerId)
-        ->addValue('display_name', 'TEDI Agent ' . $record['TDMitarbeiter'])
+        ->addValue('display_name', $prefix . ' Agent ' . $record['TDMitarbeiter'])
         ->execute()
         ->first();
 

@@ -21,6 +21,11 @@ define('TM_PHONE_NEW',        4);
  */
 class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streetimport_GP_Handler_TMRecordHandler {
 
+  const TM_COMPANIES = [
+    'tedi',
+    'telepower',
+  ];
+
   /** cached ids */
   protected $_contact_called_activity_id = NULL;
   protected $_contact_phone_changed_id = NULL;
@@ -33,7 +38,7 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
    */
   public function canProcessRecord($record, $sourceURI) {
     $parsedFileName = $this->parseTmFile($sourceURI);
-    return ($parsedFileName && $parsedFileName['file_type'] == 'Telefon' && $parsedFileName['tm_company'] == 'tedi');
+    return ($parsedFileName && $parsedFileName['file_type'] == 'Telefon' && in_array($parsedFileName['tm_company'], self::TM_COMPANIES));
   }
 
   /**
