@@ -247,7 +247,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     // FIRST: compile and create SEPA mandate
     $annual_amount = CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['JahresBetrag']);
     $frequency = $record['Einzugsintervall'];
-    $amount = number_format($annual_amount / $frequency, 2);
+    $amount = $annual_amount / $frequency;
     $mandate_params = array(
       'type'                => 'RCUR',
       'iban'                => $record['IBAN'],
@@ -310,7 +310,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $mandate_params = array(
       'type'                => 'OOFF',
       'iban'                => $record['IBAN'],
-      'amount'              => number_format(CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['BuchungsBetrag']), 2),
+      'amount'              => CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['BuchungsBetrag']),
       'contact_id'          => $contact_id,
       'currency'            => 'EUR',
       'receive_date'        => $mandate_start_date,
@@ -376,7 +376,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'campaign_id'                             => $this->getCampaignID($record),
       'membership_payment.from_ba'              => CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN'], NULL),
       'membership_payment.to_ba'                => CRM_Contract_BankingLogic::getCreditorBankAccount(),
-      'membership_payment.membership_annual'    => number_format($annual_amount, 2),
+      'membership_payment.membership_annual'    => $annual_amount,
       'membership_payment.membership_frequency' => $frequency,
       'membership_payment.cycle_day'            => $config->getNextCycleDay($new_start_date, $now),
       'membership_payment.defer_payment_start'  => $defer_payment_start,

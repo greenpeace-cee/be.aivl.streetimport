@@ -303,7 +303,7 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
     //  - calculate amount/frequency
     $frequency = $this->getFrequency($record);
     $mandate_data['frequency_interval'] = 12 / $frequency;
-    $amount = number_format($mandate_data['amount'] / $frequency, 2, '.', '');
+    $amount = $mandate_data['amount'] / $frequency;
     if ($amount * $frequency != $mandate_data['amount']) {
       // this is a bad contract amount for the interval
       $frequency = CRM_Utils_Array::value('Vertrags_Beginn', $record);
