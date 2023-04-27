@@ -283,91 +283,68 @@ class CRM_Streetimport_GP_Handler_DDRecordHandler extends CRM_Streetimport_GP_Ha
    * Create a new contract for this contact
    */
   protected function createDDContract($contact_id, $record) {
-    $config = CRM_Streetimport_Config::singleton();
 
-    //  ---------------------------------------------
-    // |           CREATE MANDATE                    |
-    //  ---------------------------------------------
-    $mandate_data = array(
-      'iban'               => CRM_Utils_Array::value('IBAN', $record),
-      'amount'             => CRM_Utils_Array::value('MG_Beitrag_pro_Jahr', $record),
-      'frequency_unit'     => 'month',
-      'contact_id'         => $contact_id,
-      'financial_type_id'  => 2, // Membership Dues
-      'currency'           => 'EUR',
-      'type'               => 'RCUR',
-      'campaign_id'        => $this->getCampaignID($record),
-    );
-
-    // process/adjust data:
-    //  - calculate amount/frequency
+    // Payment frequency & amount
     $frequency = $this->getFrequency($record);
-    $mandate_data['frequency_interval'] = 12 / $frequency;
-    $amount = $mandate_data['amount'] / $frequency;
-    if ($amount * $frequency != $mandate_data['amount']) {
-      // this is a bad contract amount for the interval
-      $frequency = CRM_Utils_Array::value('Vertrags_Beginn', $record);
-      $this->logger->logError("Contract annual amount '{$mandate_data['amount']}' not divisiable by frequency {$frequency}.", $record);
-    }
-    $mandate_data['amount'] = $amount;
+    $frequency_interval = 12 / $frequency;
+    $annual_amount = (float) CRM_Utils_Array::value('MG_Beitrag_pro_Jahr', $record);
+    $amount = $annual_amount / $frequency;
 
-    // process start date
-    $now = date('YmdHis');
-    if (empty($record['Vertrags_Beginn'])) {
-      $mandate_data['start_date'] = $now;
-    } else {
-      $mandate_data['start_date'] = date('YmdHis', strtotime($record['Vertrags_Beginn']));
-      if ($mandate_data['start_date'] < $now) {
-        $mandate_data['start_date'] = $now;
-      }
+    if ($amount * $frequency !== $annual_amount) {
+      $this->logger->logError(
+        "Contract annual amount '$annual_amount' not divisible by frequency $frequency.",
+        $record
+      );
     }
-    $mandate_data['cycle_day']  = $config->getNextCycleDay($mandate_data['start_date'], $now);
 
-    // check parameters
-    $required_params = array('iban', 'start_date', 'cycle_day', 'contact_id');
-    foreach ($required_params as $required_param) {
-      if (empty($mandate_data[$required_param])) {
-        $this->logger->logError("Contract couldn't be created, '{$required_param}' is missing.", $record);
-        return;
+    // Start date
+    $start_date = new DateTimeImmutable();
+
+    if (isset($record['Vertrags_Beginn'])) {
+      $contract_start = new DateTimeImmutable($record['Vertrags_Beginn']);
+
+      if ($contract_start->getTimestamp() > $start_date->getTimestamp()) {
+        $start_date = $contract_start;
       }
     }
 
-    // create mandate
-    $mandate = NULL;
-    try {
-      // error_log("SepaMandate.createfull: " . json_encode($mandate_data));
-      $mandate = civicrm_api3('SepaMandate', 'createfull', $mandate_data);
-      $mandate = civicrm_api3('SepaMandate', 'getsingle', array('id' => $mandate['id']));
-    } catch (Exception $e) {
-      $this->logger->logError("Contract couldn't be created, error was: " . $e->getMessage(), $record);
+    // Bank accounts
+    if (empty($record['IBAN'])) {
+      $this->logger->logError("Contract couldn't be created, IBAN is missing.", $record);
       return;
     }
 
+    $from_ba = CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN']);
+    $to_ba = CRM_Contract_BankingLogic::getCreditorBankAccount();
 
-    //  ---------------------------------------------
-    // |           CREATE MEMBERSHIP                 |
-    //  ---------------------------------------------
-    $contract_data = array(
-      'contact_id'                                           => $contact_id,
-      'membership_type_id'                                   => $this->getMembershipTypeID($record),
-      'join_date'                                            => $this->getDate($record),
-      'start_date'                                           => date('YmdHis'), // now
-      'campaign_id'                                          => $this->getCampaignID($record),
-      'membership_general.membership_channel'                => CRM_Utils_Array::value('Kontaktart', $record),
-      'membership_general.membership_contract'               => CRM_Utils_Array::value('MG_NR_Formular', $record),
-      'membership_general.membership_dialoger'               => $this->getDialogerID($record),
-      'membership_payment.membership_recurring_contribution' => $mandate['entity_id'],
-      'membership_payment.from_ba'                           => CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN'], NULL),
-      'membership_payment.to_ba'                             => CRM_Contract_BankingLogic::getCreditorBankAccount(),
-    );
+    // Create contract
+    $contract_data = [
+      'campaign_id'                            => $this->getCampaignID($record),
+      'contact_id'                             => $contact_id,
+      'join_date'                              => $this->getDate($record),
+      'membership_general.membership_channel'  => CRM_Utils_Array::value('Kontaktart', $record),
+      'membership_general.membership_contract' => CRM_Utils_Array::value('MG_NR_Formular', $record),
+      'membership_general.membership_dialoger' => $this->getDialogerID($record),
+      'membership_payment.from_ba'             => $from_ba,
+      'membership_payment.to_ba'               => $to_ba,
+      'membership_type_id'                     => $this->getMembershipTypeID($record),
+      'payment_method.adapter'                 => 'sepa_mandate',
+      'payment_method.amount'                  => $amount,
+      'payment_method.campaign_id'             => $this->getCampaignID($record),
+      'payment_method.contact_id'              => $contact_id,
+      'payment_method.currency'                => 'EUR',
+      'payment_method.financial_type_id'       => CRM_Streetimport_Utils::getFinancialTypeID('Member Dues'),
+      'payment_method.frequency_interval'      => $frequency_interval,
+      'payment_method.frequency_unit'          => 'month',
+      'payment_method.iban'                    => CRM_Utils_Array::value('IBAN', $record),
+      'payment_method.type'                    => 'RCUR',
+      'start_date'                             => $start_date->format('YmdHis'),
+    ];
 
-    // process/adjust data:
-    $contract_data['start_date'] = date('YmdHis', strtotime($contract_data['start_date']));
-
-    // create
     $this->logger->logDebug("Calling Contract.create: " . json_encode($contract_data), $record);
-    $membership = civicrm_api3('Contract', 'create', $contract_data);
-    return $membership['id'];
+    $api_result = civicrm_api3('Contract', 'create', $contract_data);
+
+    return $api_result['id'];
   }
 
 

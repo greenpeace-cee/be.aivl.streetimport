@@ -89,50 +89,6 @@ class CRM_Streetimport_GPPL_Config extends CRM_Streetimport_Config {
   }
 
   /**
-   * calculate the next valid cycle day
-   *
-   * @param $start_date
-   * @param $now
-   *
-   * @return int
-   * @throws \Exception
-   */
-  public function getNextCycleDay($start_date, $now) {
-    // TODO: use SEPA function
-
-    // find the right start date
-    $creditor = CRM_Sepa_Logic_Settings::defaultCreditor();
-    $buffer_days = (int) CRM_Sepa_Logic_Settings::getSetting("pp_buffer_days") + (int) CRM_Sepa_Logic_Settings::getSetting("batching.FRST.notice", $creditor->id);
-    $now                 = strtotime($now);
-    $start_date          = strtotime($start_date);
-    $earliest_start_date = strtotime("+{$buffer_days} day", $now);
-    if ($start_date < $earliest_start_date) {
-      $start_date = $earliest_start_date;
-    }
-
-    // now: find the next valid start day
-    $cycle_days = $this->getCycleDays();
-    $safety_counter = 32;
-    while (!in_array(date('j', $start_date), $cycle_days)) {
-      $start_date = strtotime('+ 1 day', $start_date);
-      $safety_counter -= 1;
-      if ($safety_counter == 0) {
-        throw new Exception("There's something wrong with the getNextCycleDay method.");
-      }
-    }
-    return (int) date('j', $start_date);
-  }
-
-  /**
-   * Get the list of allowed cycle days
-   *
-   * @return string
-   */
-  public function getCycleDays() {
-    return CRM_Sepa_Logic_Settings::getListSetting("cycledays", range(1, 28), $this->getCreditorID());
-  }
-
-  /**
    * get the SEPA creditor ID to be used for all mandates
    *
    * @return int

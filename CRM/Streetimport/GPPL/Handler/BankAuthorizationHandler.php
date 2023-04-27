@@ -177,12 +177,10 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
 
       $activity = reset($activities['values']);
 
-      $cycleDayFieldId = CRM_Contract_Utils::getCustomFieldId('contract_updates.ch_cycle_day');
       $updateParams = [
         'id' => $activity['id'],
         'activity_date_time' => CRM_Contract_Utils::getDefaultContractChangeDate(),
         'status_id' => 'scheduled',
-        $cycleDayFieldId => $config->getNextCycleDay(CRM_Contract_Utils::getDefaultContractChangeDate(), CRM_Contract_Utils::getDefaultContractChangeDate()),
       ];
       civicrm_api3('Activity', 'Create', $updateParams);
     }
@@ -226,7 +224,6 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
     $reviveModification = array(
       'action' => 'revive',
       'id' => $membershipId,
-      'membership_payment.cycle_day' => $config->getNextCycleDay(CRM_Contract_Utils::getDefaultContractChangeDate(), CRM_Contract_Utils::getDefaultContractChangeDate()),
       'medium_id' => $this->getMediumID(),
       'source_contact_id' => (int) $config->getFundraiserContactID(),
     );

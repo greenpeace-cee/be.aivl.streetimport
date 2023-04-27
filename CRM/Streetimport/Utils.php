@@ -1,4 +1,7 @@
 <?php
+
+use Civi\Api4;
+
 /**
  * Class with extension specific util functions
  *
@@ -157,6 +160,23 @@ class CRM_Streetimport_Utils {
     } catch (CiviCRM_API3_Exception $ex) {
       return array();
     }
+  }
+
+  /**
+   * Function to get the ID of a financial type by name
+   *
+   * @param string $financialTypeName
+   * @return int $financialTypeID
+   * @access public
+   * @static
+   */
+  public static function getFinancialTypeID($financialTypeName) {
+    return (int) Api4\FinancialType::get(FALSE)
+      ->addWhere('name', '=', $financialTypeName)
+      ->addSelect('id')
+      ->setLimit(1)
+      ->execute()
+      ->first()['id'];
   }
 
   /**
