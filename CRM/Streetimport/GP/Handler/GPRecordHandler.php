@@ -227,65 +227,80 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * FIELDS: Vertragsnummer  Bankleitzahl  Kontonummer Bic Iban  Kontoinhaber  Bankinstitut  Einzugsstart  JahresBetrag  BuchungsBetrag  Einzugsintervall  EinzugsEndeDatum
    */
   public function createContract($contact_id, $record) {
-    $config = CRM_Streetimport_Config::singleton();
 
-    // validate parameters
+    // Validate parameters
     if (    empty($record['IBAN'])
          || empty($record['JahresBetrag'])
          || empty($record['Einzugsintervall'])) {
       return $this->logger->logError("Couldn't create mandate, information incomplete.", $record);
     }
 
-    // get start date
-    $now = date('YmdHis');
-    // backdate by 3 days so the collection is not jeopardised (GP-1416)
-    $mandate_start_date = date('YmdHis', strtotime('-3 days', strtotime($record['Einzugsstart'])));
-    if (empty($mandate_start_date) || $mandate_start_date < $now) {
-      $mandate_start_date = $now;
-    }
-
-    // FIRST: compile and create SEPA mandate
+    // Payment frequency & amount
+    $frequency = (int) $record['Einzugsintervall'];
+    $frequency_interval = 12 / $frequency;
     $annual_amount = CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['JahresBetrag']);
-    $frequency = $record['Einzugsintervall'];
-    $amount = number_format($annual_amount / $frequency, 2);
-    $mandate_params = array(
-      'type'                => 'RCUR',
-      'iban'                => $record['IBAN'],
-      'amount'              => $amount,
-      'contact_id'          => $contact_id,
-      'currency'            => 'EUR',
-      'frequency_unit'      => 'month',
-      'cycle_day'           => $config->getNextCycleDay($mandate_start_date, $now),
-      'frequency_interval'  => (int) (12.0 / $frequency),
-      'start_date'          => $mandate_start_date,
-      'campaign_id'         => $this->getCampaignID($record),
-      'financial_type_id'   => 2, // Membership Dues
-      );
-    if (!empty($record['EinzugsEndeDatum'])) {
-      $mandate_params['end_date'] = date('YmdHis', strtotime($record['EinzugsEndeDatum']));
+    $amount = $annual_amount / $frequency;
+
+    // Start date
+    $start_date = new DateTimeImmutable();
+
+    if (isset($record['Einzugsstart'])) {
+      $contract_start = new DateTimeImmutable($record['Einzugsstart']);
+
+      // GP-1416: Backdate by 3 days so the collection is not jeopardised
+      $three_days = new DateInterval('P3D');
+      $contract_start = $contract_start->sub($three_days);
+
+      if ($contract_start->getTimestamp() > $start_date->getTimestamp()) {
+        $start_date = $contract_start;
+      }
     }
 
-    // create and reload mandate
-    $mandate = civicrm_api3('SepaMandate', 'createfull', $mandate_params);
-    $mandate = civicrm_api3('SepaMandate', 'getsingle', array('id' => $mandate['id']));
+    // End date
+    $end_date = NULL;
 
-    // NEXT: create membership
-    $membership_params = array(
-      'contact_id'                                           => $contact_id,
-      'membership_type_id'                                   => $this->getMembershipTypeID($record),
-      'member_since'                                         => $this->getDate($record),
-      'start_date'                                           => $mandate_start_date,
-      'join_date'                                            => $this->getDate($record),
-      'campaign_id'                                          => $this->getCampaignID($record),
-      'membership_payment.membership_recurring_contribution' => $mandate['entity_id'],
-      'membership_payment.from_ba'                           => CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN'], NULL),
-      'membership_payment.to_ba'                             => CRM_Contract_BankingLogic::getCreditorBankAccount(),
-      );
+    if (!empty($record['EinzugsEndeDatum'])) {
+      $end_date = date('YmdHis', strtotime($record['EinzugsEndeDatum']));
+    }
 
-    $this->logger->logDebug("Calling Contract.create: " . json_encode($membership_params), $record);
-    $membership = civicrm_api3('Contract', 'create', $membership_params);
+    // Bank accounts
+    if (empty($record['IBAN'])) {
+      $this->logger->logError("Contract couldn't be created, IBAN is missing.", $record);
+      return;
+    }
+
+    $from_ba = CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN']);
+    $to_ba = CRM_Contract_BankingLogic::getCreditorBankAccount();
+
+    // Create contract
+    $contract_data = [
+      'contact_id'                        => $contact_id,
+      'membership_type_id'                => $this->getMembershipTypeID($record),
+      'member_since'                      => $this->getDate($record),
+      'start_date'                        => $start_date->format('YmdHis'),
+      'join_date'                         => $this->getDate($record),
+      'end_date'                          => $end_date,
+      'campaign_id'                       => $this->getCampaignID($record),
+      'membership_payment.from_ba'        => $from_ba,
+      'membership_payment.to_ba'          => $to_ba,
+      'payment_method.adapter'            => 'sepa_mandate',
+      'payment_method.amount'             => $amount,
+      'payment_method.campaign_id'        => $this->getCampaignID($record),
+      'payment_method.contact_id'         => $contact_id,
+      'payment_method.currency'           => 'EUR',
+      'payment_method.end_date'           => $end_date,
+      'payment_method.financial_type_id'  => CRM_Streetimport_Utils::getFinancialTypeID('Member Dues'),
+      'payment_method.frequency_interval' => $frequency_interval,
+      'payment_method.frequency_unit'     => 'month',
+      'payment_method.iban'               => $record['IBAN'],
+      'payment_method.type'               => 'RCUR',
+    ];
+
+    $this->logger->logDebug("Calling Contract.create: " . json_encode($contract_data), $record);
+    $api_result = civicrm_api3('Contract', 'create', $contract_data);
     $this->_contract_changes_produced = TRUE;
-    return $membership['id'];
+
+    return $api_result['id'];
   }
 
   /**
@@ -310,7 +325,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $mandate_params = array(
       'type'                => 'OOFF',
       'iban'                => $record['IBAN'],
-      'amount'              => number_format(CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['BuchungsBetrag']), 2),
+      'amount'              => CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['BuchungsBetrag']),
       'contact_id'          => $contact_id,
       'currency'            => 'EUR',
       'receive_date'        => $mandate_start_date,
@@ -339,62 +354,70 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    */
   public function updateContract($contract_id, $contact_id, $record, $new_type = NULL, $action = 'update') {
     if (empty($contract_id)) return; // this shoudln't happen
-    $config = CRM_Streetimport_Config::singleton();
 
-    // STEP 1: TRIGGER UPDATE
-
-    // validate parameters
+    // Validate parameters
     if (    empty($record['IBAN'])
          || empty($record['JahresBetrag'])
          || empty($record['Einzugsintervall'])) {
       return $this->logger->logError("Couldn't create mandate, information incomplete.", $record);
     }
 
-    // find out update date
-    $now = date('Y-m-d H:i:s');
-    $defer_payment_start = 1;
-    if (empty($record['Einzugsstart'])) {
-      $new_start_date = $now;
-    } else {
-      // backdate by 3 days so the collection is not jeopardised (GP-1416)
-      $new_start_date = date('Y-m-d H:i:s', strtotime('-3 days', strtotime($record['Einzugsstart'])));
-      if ($new_start_date < $now) {
-        $new_start_date = $now;
+    // Payment frequency & amount
+    $frequency = (int) $record['Einzugsintervall'];
+    $annual_amount = CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['JahresBetrag']);
+
+    // Start date
+    $start_date = new DateTimeImmutable();
+    $defer_payment_start = TRUE;
+
+    if (isset($record['Einzugsstart'])) {
+      $contract_start = new DateTimeImmutable($record['Einzugsstart']);
+
+      // GP-1416: Backdate by 3 days so the collection is not jeopardised
+      $three_days = new DateInterval('P3D');
+      $contract_start = $contract_start->sub($three_days);
+
+      if ($contract_start->getTimestamp() > $start_date->getTimestamp()) {
+        $start_date = $contract_start;
       }
+
       // GP-1790: Force debit to start with $new_start_date
-      $defer_payment_start = 0;
+      $defer_payment_start = FALSE;
     }
 
-    // send upgrade notification
-    $annual_amount = CRM_Streetimport_GP_Utils_Number::parseGermanFormatNumber($record['JahresBetrag']);
-    $frequency = $record['Einzugsintervall'];
-    $contract_modification = array(
+    // Bank accounts
+    if (empty($record['IBAN'])) {
+      $this->logger->logError("Contract couldn't be created, IBAN is missing.", $record);
+      return;
+    }
+
+    $from_ba = CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN']);
+    $to_ba = CRM_Contract_BankingLogic::getCreditorBankAccount();
+
+    $contract_data = [
       'action'                                  => $action,
-      'date'                                    => $new_start_date,
+      'campaign_id'                             => $this->getCampaignID($record),
+      'date'                                    => $start_date->format('YmdHis'),
       'id'                                      => $contract_id,
       'medium_id'                               => $this->getMediumID($record),
-      'campaign_id'                             => $this->getCampaignID($record),
-      'membership_payment.from_ba'              => CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN'], NULL),
-      'membership_payment.to_ba'                => CRM_Contract_BankingLogic::getCreditorBankAccount(),
-      'membership_payment.membership_annual'    => number_format($annual_amount, 2),
-      'membership_payment.membership_frequency' => $frequency,
-      'membership_payment.cycle_day'            => $config->getNextCycleDay($new_start_date, $now),
       'membership_payment.defer_payment_start'  => $defer_payment_start,
-      // no 'end_date' in contracts any more
-      );
+      'membership_payment.from_ba'              => $from_ba,
+      'membership_payment.membership_annual'    => $annual_amount,
+      'membership_payment.membership_frequency' => $frequency,
+      'membership_payment.to_ba'                => $to_ba,
+    ];
 
-    // add membership type change (if requested)
+    // Add membership type change (if requested)
     if ($new_type) {
-      $contract_modification['membership_type_id'] = $new_type;
+      $contract_data['membership_type_id'] = $new_type;
     }
 
-    $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_modification), $record);
-    civicrm_api3('Contract', 'modify', $contract_modification);
+    $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_data), $record);
+    civicrm_api3('Contract', 'modify', $contract_data);
     $this->_contract_changes_produced = TRUE;
     $this->logger->logDebug("Update for membership [{$contract_id}] scheduled.", $record);
 
-    // STEP 3: SCHEDULE END IF REQUESTED
-
+    // Schedule end (if requested)
     if (!empty($record['EinzugsEndeDatum'])) {
       $contract_modification = array(
         'action'                                           => 'cancel',

@@ -27,7 +27,7 @@ class CRM_Streetimport_GP_Utils_Number {
     $stringNumber = str_replace(' ', '', $stringNumber);
 
     if (!CRM_Streetimport_GP_Utils_Number::isGermanFormatNumber($stringNumber)) {
-      return $stringNumber;
+      return floatval($stringNumber);
     }
 
     $cleanStringNumber = str_replace('.', '', $stringNumber);
