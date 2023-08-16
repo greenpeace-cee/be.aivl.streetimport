@@ -76,7 +76,7 @@ trait CRM_Streetimport_GP_Utils_OutgoingCallTrait {
             ->setSelect([
               'label',
             ])
-            ->addWhere('option_group:name', '=', 'payment_frequency')
+            ->addWhere('option_group_id:name', '=', 'payment_frequency')
             ->addWhere('value', '=', $data['frequency'])
             ->execute()
             ->first();
