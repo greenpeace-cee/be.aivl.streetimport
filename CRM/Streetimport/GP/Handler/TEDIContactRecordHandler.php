@@ -62,7 +62,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     }
 
     // only perform these actions if the contact was actually reached
-    if ($this->isContactReachedResponse($record['Ergebnisnummer'])) {
+    if ($this->isContactReachedResponse($record['Ergebnisnummer']) || $this->isTrue($record, 'gespraech_stattgefunden')) {
       // apply contact base data updates if provided
       // FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz Land PLZ Ort email
       $this->performContactBaseUpdates($contact_id, $record);
