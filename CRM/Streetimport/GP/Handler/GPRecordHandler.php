@@ -372,6 +372,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     if (isset($record['Einzugsstart'])) {
       $contract_start = new DateTimeImmutable($record['Einzugsstart']);
+      $cycle_day = (int) $contract_start->format('d');
 
       // GP-1416: Backdate by 3 days so the collection is not jeopardised
       $three_days = new DateInterval('P3D');
@@ -400,6 +401,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'date'                                    => $start_date->format('YmdHis'),
       'id'                                      => $contract_id,
       'medium_id'                               => $this->getMediumID($record),
+      'membership_payment.cycle_day'            => $cycle_day,
       'membership_payment.defer_payment_start'  => $defer_payment_start,
       'membership_payment.from_ba'              => $from_ba,
       'membership_payment.membership_annual'    => $annual_amount,
