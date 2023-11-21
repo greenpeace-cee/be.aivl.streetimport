@@ -454,7 +454,15 @@ abstract class CRM_Streetimport_AIVL_Handler_StreetimportRecordHandler extends C
    */
   public function saveBankAccount($mandate_data, $record) {
     $config = CRM_Streetimport_Config::singleton();
-    $type_id_IBAN = (int) CRM_Core_OptionGroup::getValue('civicrm_banking.reference_types', 'IBAN', 'name', 'String', 'id');
+    try {
+      $type_id_IBAN = (int) civicrm_api3('OptionValue', 'getvalue', [
+        'return' => "id",
+        'option_group_id' => 'civicrm_banking.reference_types',
+        'name' => 'IBAN',
+      ]);
+    } catch (CiviCRM_API3_Exception $e) {
+      $type_id_IBAN = 0;
+    }
     if (empty($type_id_IBAN)) {
       $this->logger->abort("Could't find 'IBAN' reference type. Maybe CiviBanking is not installed?", $record);
       return;
