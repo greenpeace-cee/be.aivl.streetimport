@@ -107,6 +107,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         break;
 
       case TM_PROJECT_TYPE_SURVEY:
+      case TM_PROJECT_TYPE_WELCOME:
         // Nothing to do here?
         break;
 
@@ -151,17 +152,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       return $this->logger->logError("Invalid Country for Contact [{$record['id']}]: '{$record['Land']}'", $record);
     }
 
-    $parent_id = $this->getActivityId($record) ?? $this->getParentActivityId(
-      $contact_id,
-      $this->getCampaignID($record),
-      [
-        'activity_types' => ['Action'],
-        'min_date' => date('Y-m-d', strtotime('-90 days', strtotime($this->getDate($record)))),
-        'max_date' => date('Y-m-d', strtotime($this->getDate($record))) ,
-      ]
-    );
+    $parent_id = $this->getActivityId($record);
     if (empty($parent_id)) {
-      $this->logger->logWarning('Could not find parent action activity', $record);
+      $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
+      return $this->logger->logError('Could not find parent activity', $record);
     }
 
     $createResponse = TRUE;
@@ -183,6 +177,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         // this is a conversion/upgrade
         $contract_id = $this->getContractID($contact_id, $record);
         if (empty($contract_id)) {
+          if ($project_type == TM_PROJECT_TYPE_WELCOME) {
+            // Welcome just uses this as a response without changes if $contract_id is empty
+            break;
+          }
           // make sure this is no mistake (see GP-1123)
           if ($contract_id_required) {
             // this whole line should not be imported (see GP-1123)
@@ -298,7 +296,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
     if ($createResponse) {
       // GENERATE RESPONSE ACTIVITY
-      $this->createResponseActivity(
+      $this->createResponse(
         $contact_id,
         $this->assembleResponseSubject($record['Ergebnisnummer'], $record['ErgebnisText']),
         $record
@@ -1261,6 +1259,38 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
     }
     return $dialoger['id'];
+  }
+
+  /**
+   * Add TM response either as response activity or outgoing call field
+   *
+   * @throws \Civi\API\Exception\UnauthorizedException
+   * @throws \API_Exception
+   */
+  public function createResponse($contact_id, $title, $record) {
+    $activity_id = $this->getActivityId($record);
+    if (empty($activity_id)) {
+      throw new Exception('Cannot create response without parent activity id.');
+    }
+    $activity = \Civi\Api4\Activity::get(FALSE)
+      ->addSelect('activity_type_id:name')
+      ->addWhere('id', '=', $activity_id)
+      ->execute()
+      ->first();
+    if ($activity['activity_type_id:name'] == 'Outgoing Call') {
+      $update = \Civi\Api4\Activity::update(FALSE)
+        ->addValue('activity_tmresponses.response:label', $title)
+        ->addValue('activity_tmresponses.response_date', $this->getDate($record))
+        ->addValue('activity_tmresponses.response_counter', $record['Ergebnisnummer'] == TM_KONTAKT_RESPONSE_KONTAKT_NICHT_ANGEGRIFFEN ? 0 : 1)
+        ->addValue('status_id:name', 'Completed')
+        ->addWhere('id', '=', $activity_id);
+      $assignee = $this->getAssignee($record);
+      if (!empty($assignee)) {
+        $update->addValue('assignee_contact_id', $assignee);
+      }
+      $update->execute();
+    }
+    $this->createResponseActivity($contact_id, $title, $record);
   }
 
 }

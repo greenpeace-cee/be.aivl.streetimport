@@ -49,6 +49,7 @@ define('TM_PROJECT_TYPE_MIDDLE_DONOR', 'mdu'); // Middle-Donor - two subtypes:
 define('TM_PROJECT_TYPE_MD_UPGRADE',   'mdup');//     subtype 1: upgrade
 define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umwandlung)
 define('TM_PROJECT_TYPE_POSTALRETURN', 'rts'); // Recherche
+define('TM_PROJECT_TYPE_WELCOME', 'wel'); // Welcome
 
 /**
  * Abstract class bundle common GP importer functions
@@ -116,24 +117,65 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
   }
 
   /**
-   * Get the activity ID referenced by this record
+   * Get the activity ID referenced by this record, or as determined by fallback
+   * parent logic
    *
    * @param array $record
    *
    * @return int|null
    */
   protected function getActivityId($record) {
+    $activityId = $this->getStrictActivityId($record);
+    if (empty($activityId)) {
+      $this->logger->logWarning('Could not determine strict parent activity', $record);
+      $activityId = $this->getFallbackActivityId($record);
+    }
+    if (empty($activityId)) {
+      $this->logger->logWarning('Could not determine fallback parent activity', $record);
+    }
+    return $activityId;
+  }
+
+  /**
+   * Get activity_id referenced in $record
+   *
+   * @param $record
+   *
+   * @return int|null
+   * @throws \CiviCRM_API3_Exception
+   */
+  protected function getStrictActivityId($record) {
     if (empty($record['activity_id'])) {
       return NULL;
     }
     $activityCount = civicrm_api3('Activity', 'getcount', [
       'id'               => $record['activity_id'],
-      'activity_type_id' => 'Action',
+      'activity_type_id' => ['IN' => ['Action', 'Outgoing Call']],
     ]);
     if (empty($activityCount)) {
       return NULL;
     }
     return $record['activity_id'];
+  }
+
+  /**
+   * Get activity_id related to $record based on relevant activity type,
+   * matching campaign and temporal relation
+   *
+   * @param $record
+   *
+   * @return int|null
+   */
+  protected function getFallbackActivityId($record) {
+    return $this->getParentActivityId(
+      $this->getContactID($record),
+      $this->getCampaignID($record),
+      [
+        'activity_types' => ['Action', 'Outgoing Call'],
+        'min_date' => date('Y-m-d', strtotime('-90 days', strtotime($this->getDate($record)))),
+        'max_date' => date('Y-m-d', strtotime($this->getDate($record))),
+      ]
+    );
   }
 
   /**
@@ -243,18 +285,8 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
   public function createActivity($data, $record, $assigned_contact_ids=NULL) {
     $config = CRM_Streetimport_Config::singleton();
     $parent_id_field = $config->getGPCustomFieldKey('parent_activity_id');
-    $parent_id = $this->getActivityId($record) ?? $this->getParentActivityId(
-      (int) $this->getContactID($record),
-      $this->getCampaignID($record),
-      [
-        'activity_types' => ['Action'],
-        'min_date' => date('Y-m-d', strtotime('-90 days', strtotime($this->getDate($record)))),
-        'max_date' => date('Y-m-d', strtotime($this->getDate($record))) ,
-      ]
-    );
-    if (empty($parent_id)) {
-      $this->logger->logWarning("Could not find parent Action activity for contact " . $this->getContactID($record), $record);
-    } else {
+    $parent_id = $this->getActivityId($record);
+    if (!empty($parent_id)) {
       $data[$parent_id_field] = $parent_id;
     }
     return parent::createActivity($data, $record, $assigned_contact_ids);

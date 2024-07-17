@@ -697,9 +697,9 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    *
    * @param $contact_id
    * @param $campaign_id
-   * @param array|NULL $filters array of additional filters
+   * @param array $filters array of additional filters
    *
-   * @return string|null
+   * @return int|null
    */
   protected function getParentActivityId($contact_id, $campaign_id, array $filters = []) {
     $activity_types_resolved = [];
