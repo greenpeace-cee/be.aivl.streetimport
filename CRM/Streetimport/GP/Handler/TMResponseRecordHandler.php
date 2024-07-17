@@ -71,18 +71,10 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
     }
 
     // TODO: remove fallback
-    $parent_id = $this->getActivityId($record) ?? $this->getParentActivityId(
-      $contact_id,
-      $this->getCampaignID($record),
-      [
-        'activity_types' => ['Action'],
-        'min_date' => date('Y-m-d', strtotime('-90 days', strtotime($this->getDate($record)))),
-        'max_date' => date('Y-m-d', strtotime($this->getDate($record))) ,
-      ]
-    );
+    $parent_id = $this->getActivityId($record);
     if (empty($parent_id)) {
       $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
-      return $this->logger->logError('Could not find parent action activity', $record);
+      return $this->logger->logError('Could not find parent activity', $record);
     }
 
     $existingResponseCount = civicrm_api3('Activity', 'getcount', [
