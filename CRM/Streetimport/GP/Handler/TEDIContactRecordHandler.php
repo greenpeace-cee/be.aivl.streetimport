@@ -1216,7 +1216,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           $config->getGPCustomFieldKey('shirt_type')        => $data['shirt_type'] ?? NULL,
           $config->getGPCustomFieldKey('shirt_size')        => $data['shirt_size'] ?? NULL,
           $config->getGPCustomFieldKey('free_order')        => $data['free_order'] ?? 0,
-          $config->getGPCustomFieldKey('linked_membership') => $contract_id,
+          $config->getGPCustomFieldKey('linked_membership') => $data['linked_membership'] ?? $contract_id,
           'status_id'                                       => $status_id,
         ]);
         break;
