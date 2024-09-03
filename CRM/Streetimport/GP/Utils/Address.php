@@ -1,5 +1,7 @@
 <?php
 
+use Civi\Api4;
+
 /**
  * Class provide Address helper methods
  */
@@ -28,36 +30,21 @@ class CRM_Streetimport_GP_Utils_Address {
     }
 
     try {
-      $address = civicrm_api3('PostcodeAT', 'get', [
-        'sequential' => 1,
-        'plznr' => $postalCode,
-        'ortnam' => $city,
-        'stroffi' => $street,
-        'return' => 'id',
-        'strict_fields_searching' => ["stroffi", 'ortnam', 'plznr'],
-      ]);
+      $queryResult = Api4\PostcodeAT::get(FALSE)
+        ->selectRowCount()
+        ->addWhere('plznr', '=', $postalCode)
+        ->addClause('OR',
+          ['gemnam38', '=', $city],
+          ['ortnam', '=', $city],
+          ['zustort', '=', $city]
+        )
+        ->addWhere('stroffi', '=', $street)
+        ->execute();
 
-      $ortnamSearchResult = !empty($address['values']);
+      return $queryResult->rowCount > 0;
     } catch (CiviCRM_API3_Exception $e) {
-      $ortnamSearchResult = FALSE;
+      return FALSE;
     }
-
-    try {
-      $address = civicrm_api3('PostcodeAT', 'get', [
-        'sequential' => 1,
-        'plznr' => $postalCode,
-        'gemnam38' => $city,
-        'stroffi' => $street,
-        'return' => 'id',
-        'strict_fields_searching' => ["stroffi", 'gemnam38', 'plznr'],
-      ]);
-
-      $gemnam38SearchResult = !empty($address['values']);
-    } catch (CiviCRM_API3_Exception $e) {
-      $gemnam38SearchResult = FALSE;
-    }
-
-    return $gemnam38SearchResult || $ortnamSearchResult;
   }
 
 }
