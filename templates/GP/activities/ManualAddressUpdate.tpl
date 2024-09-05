@@ -1,4 +1,7 @@
 <h2>{$title}</h2>
+{if !empty($subtitle)}
+  <h3 class="crm-error">{$subtitle}</h3>
+{/if}
 <table>
   <thead>
     <tr>

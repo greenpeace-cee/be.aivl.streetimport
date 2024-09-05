@@ -928,9 +928,13 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       $this->logger->logDebug("Manual address update required for [{$contact_id}] due to incomplete address.", $record);
       return $this->createManualUpdateActivity(
         $contact_id, 'Manual Address Update', $record, 'activities/ManualAddressUpdate.tpl',
-        array('title'   => 'Please update contact\'s address (new address may be incomplete!)',
+        [
+          'title'   => 'Please update contact\'s address',
+          'subtitle' => 'New address may be incomplete!',
           'fields'  => $config->getAllAddressAttributes(),
-          'address' => $address_data));
+          'address' => $address_data
+        ]
+      );
     }
 
     // find the old address
@@ -1008,10 +1012,13 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       $this->logger->logDebug("Manual address update required for [{$contact_id}] due to invalid address.", $record);
       return $this->createManualUpdateActivity(
         $contact_id, 'Manual Address Update', $record, 'activities/ManualAddressUpdate.tpl',
-        array('title'       => 'Please update contact\'s address (new address may be invalid!)',
+        [
+          'title'       => 'Please update contact\'s address',
+          'subtitle'    => 'New address was not found in address reference!',
           'fields'      => $config->getAllAddressAttributes(),
           'address'     => $address_data,
-          'old_address' => $old_address));
+          'old_address' => $old_address
+      ]);
     }
   }
 
