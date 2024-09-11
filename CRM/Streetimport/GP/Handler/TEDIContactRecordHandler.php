@@ -343,6 +343,15 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     }
   }
 
+  protected function getCancelReason($record, $params = []) {
+    if (empty($record['Stornogrund'])) {
+      $this->logger->logWarning("Missing value for 'Stornogrund'", $record);
+      return $params['cancel_reason'] ?? 'XX02';
+    }
+
+    return $record['Stornogrund'];
+  }
+
   /**
    * Apply contact base date updates (if present in the data)
    * FIELDS: nachname, vorname, firma, TitelAkademisch, TitelAdel, TitelAmt,  Anrede,

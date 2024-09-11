@@ -481,7 +481,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
         'id'                                               => $membership['id'],
         'medium_id'                                        => $this->getMediumID($record),
         'campaign_id'                                      => $this->getCampaignID($record),
-        'membership_cancellation.membership_cancel_reason' => CRM_Utils_Array::value('cancel_reason', $params, 'XX02'),
+        'membership_cancellation.membership_cancel_reason' => $this->getCancelReason($record, $params),
         );
 
       // add cancel date if in the future:
@@ -524,6 +524,14 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    */
   protected function getAssignee($record) {
     return NULL;
+  }
+
+  /**
+   * This is just a fall-back, most handlers would want to
+   * provide their own function.
+   */
+  protected function getCancelReason($record, $params = []) {
+    return $params['cancel_reason'] ?? 'XX02';
   }
 
   /**
