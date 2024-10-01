@@ -401,20 +401,26 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
    * @throws \CiviCRM_API3_Exception
    */
   protected function processReturn($record) {
-    $contact_id = $this->getContactID($record);
+    $contact_id = (int) $this->getContactID($record);
+    $campaign_id = (int) $this->getCampaignID($record);
     $category = $this->getCategory($record);
     $primary_address = $this->getPrimaryAddress($contact_id, $record);
     // whether to increase RTS counter where appropriate
     $increaseCounter = TRUE;
     // find parent activity
-    $parent_activity = $this->getParentActivity(
-      (int) $this->getContactID($record),
-      $this->getCampaignID($record),
-      [
-        'media'                  => ['letter_mail'],
-        'exclude_activity_types' => ['Response'],
-      ]
-    );
+    $parent_activity = $this->getParentActivity($contact_id, $campaign_id, [
+      'exclude_activity_types' => ['Response'],
+      'media'                  => ['letter_mail'],
+    ]);
+
+    // Also include webshop orders in the search
+    if (empty($parent_activity)) {
+      $parent_activity = $this->getParentActivity($contact_id, $campaign_id, [
+        'activity_types' => ['Webshop Order'],
+        'media'          => ['back_office', 'web'],
+      ]);
+    }
+
     if (empty($parent_activity)) {
       // no parent activity found, continue with last RTS activity
       $parent_activity = $this->findLastRTS($contact_id, $record);
