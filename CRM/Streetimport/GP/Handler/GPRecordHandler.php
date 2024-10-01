@@ -1138,4 +1138,100 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     ]) == 1;
   }
 
+  /**
+   * Check if there has been a change since a specified date
+   *
+   * @param $contact_id
+   * @param $minimum_date
+   * @param $record
+   *
+   * @return bool
+   */
+  public function addressChangeRecordedSince($contact_id, $minimum_date, $record) {
+    $logging = new CRM_Logging_Schema();
+
+    // Assert that logging is enabled
+    if (!$logging->isEnabled()) {
+      $this->logger->logDebug("Logging not enabled, cannot determine whether records have changed.", $record);
+      return FALSE;
+    }
+
+    // Determine the name of the logging database
+    $dsn_database = (
+      defined('CIVICRM_LOGGING_DSN')
+      ? DB::parseDSN(CIVICRM_LOGGING_DSN)
+      : DB::parseDSN(CIVICRM_DSN)
+    )['database'];
+
+    // The following address attributes will be used for comparison
+    $relevant_attributes = [
+      'city',
+      'country_id',
+      'is_primary',
+      'log_date',
+      'postal_code',
+      'street_address',
+      'supplemental_address_1',
+      'supplemental_address_2',
+    ];
+
+    $attribute_list = implode(', ', $relevant_attributes);
+
+    // Determine the primary address of the contact at the time of $minimum_date
+    $prev_addr_query = CRM_Core_DAO::executeQuery("
+      SELECT $attribute_list
+      FROM $dsn_database.log_civicrm_address
+      WHERE
+        contact_id = $contact_id
+        AND is_primary = 1
+        AND log_action != 'Delete'
+        AND log_date < '$minimum_date'
+      ORDER BY log_date DESC
+      LIMIT 1
+    ");
+
+    if (!$prev_addr_query->fetch()) return TRUE;
+
+    // Discard DB query metadata, keep only relevant attributes
+    $previous_address = array_filter(
+      (array) (clone $prev_addr_query),
+      fn ($key) => in_array($key, $relevant_attributes),
+      ARRAY_FILTER_USE_KEY
+    );
+
+    // Query all primary address changes since $minimum_date
+    $changes_query = CRM_Core_DAO::executeQuery("
+      SELECT $attribute_list
+      FROM $dsn_database.log_civicrm_address
+      WHERE
+        contact_id = $contact_id
+        AND is_primary = 1
+        AND log_action != 'Delete'
+        AND log_date >= '$minimum_date'
+      ORDER BY log_date ASC
+    ");
+
+    while ($changes_query->fetch()) {
+      // Discard DB query metadata, keep only relevant attributes
+      $change = array_filter(
+        (array) (clone $changes_query),
+        fn ($key) => in_array($key, $relevant_attributes),
+        ARRAY_FILTER_USE_KEY
+      );
+
+      foreach ($relevant_attributes as $attribute) {
+        if ($attribute == 'log_date') continue; // Can be ignored
+        if ($previous_address[$attribute] == $change[$attribute]) continue; // Hasn't changed
+
+        // A relevant attribute has changed
+        $log_date = $change['log_date'];
+        $this->logger->logDebug("Address attribute '$attribute' changed (on $log_date)", $change);
+        return TRUE;
+      }
+    }
+
+    // No relevant changes have been detected
+    return FALSE;
+  }
+
 }
