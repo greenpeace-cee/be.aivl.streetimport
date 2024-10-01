@@ -6,6 +6,7 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
+use Civi\Api4;
 use Civi\Api4\Contact;
 
 /**
@@ -426,8 +427,32 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $this->updateContact($contact_params, $contact_id, $record);
 
     //Address Entity
-    $address_params = $this->getPreparedAddressParams($record);
-    $this->createOrUpdateAddress($contact_id, $address_params, $record);
+    if ($this->addressChangeRecordedSince($contact_id, $this->getDate($record), $record)) {
+      $address_attributes = $config->getAllAddressAttributes();
+
+      $current_address = Api4\Address::get(FALSE)
+        ->addSelect(...$address_attributes)
+        ->addWhere('contact_id', '=', $contact_id)
+        ->addWhere('is_primary', '=', TRUE)
+        ->setLimit(1)
+        ->execute()
+        ->first();
+
+      $this->createManualUpdateActivity(
+        $contact_id,
+        'Recent address change detected',
+        $record,
+        'activities/ManualAddressUpdate.tpl',
+        [
+          'title'    => 'Recent address change detected',
+          'subtitle' => "The primary address of contact #$contact_id has changed since the last call",
+          'fields'   => $address_attributes,
+          'address'  => $current_address,
+        ]
+      );
+    } else {
+      $this->createOrUpdateAddress($contact_id, $this->getPreparedAddressParams($record), $record);
+    }
 
     //Email Entity
     if (!empty($record['email'])) {
