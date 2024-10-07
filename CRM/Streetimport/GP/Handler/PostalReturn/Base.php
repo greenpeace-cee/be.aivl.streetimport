@@ -366,7 +366,7 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
         $increaseCounter = FALSE;
       }
     }
-    elseif (!empty($parent_activity) && $this->addressChangeRecordedSince($contact_id, $parent_activity['activity_date_time'], $record)) {
+    elseif (!empty($parent_activity) && $this->addressChangeRecordedSince($contact_id, $parent_activity['created_date'], $record)) {
       $this->logger->logDebug("Skipping RTS increase due to logged address change for contact [{$contact_id}].", $record);
       $increaseCounter = FALSE;
     }
