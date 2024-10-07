@@ -57,6 +57,14 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       }
     }
 
+    // Determine the parent activity ID
+    $parent_id = $this->getActivityId($record);
+
+    if (empty($parent_id)) {
+      $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
+      return $this->logger->logError('Could not find parent activity', $record);
+    }
+
     // TODO: remove this workaround once TEDI stops sending files with full country names
     if (!empty($record['Land']) && strlen($record['Land']) != 2) {
       $record['Land'] = '';
@@ -66,7 +74,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     if ($this->isContactReachedResponse($record['Ergebnisnummer']) || $this->isTrue($record, 'gespraech_stattgefunden')) {
       // apply contact base data updates if provided
       // FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz Land PLZ Ort email
-      $this->performContactBaseUpdates($contact_id, $record);
+      $this->performContactBaseUpdates($contact_id, $record, $parent_id);
       // Sign up for newsletter
       // FIELDS: emailNewsletter
       if ($this->isTrue($record, 'emailNewsletter')) {
@@ -168,12 +176,6 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     if (!empty($record['Land']) && is_null($this->_getCountryByISOCode($record['Land']))) {
       $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
       return $this->logger->logError("Invalid Country for Contact [{$record['id']}]: '{$record['Land']}'", $record);
-    }
-
-    $parent_id = $this->getActivityId($record);
-    if (empty($parent_id)) {
-      $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
-      return $this->logger->logError('Could not find parent activity', $record);
     }
 
     $createResponse = TRUE;
@@ -418,16 +420,25 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
    *
    * @param $contact_id
    * @param $record
+   * @param $parent_activity_id
    *
    * @throws \CiviCRM_API3_Exception
    */
-  public function performContactBaseUpdates($contact_id, $record) {
+  public function performContactBaseUpdates($contact_id, $record, $parent_activity_id) {
     //Contact Entity
     $contact_params = $this->getPreparedContactParams($record);
     $this->updateContact($contact_params, $contact_id, $record);
 
+    // Selection date
+    $selection_date = Api4\Activity::get(FALSE)
+      ->addSelect('created_date')
+      ->addWhere('id', '=', $parent_activity_id)
+      ->setLimit(1)
+      ->execute()
+      ->first()['created_date'];
+
     //Address Entity
-    if ($this->addressChangeRecordedSince($contact_id, $this->getDate($record), $record)) {
+    if ($this->addressChangeRecordedSince($contact_id, $selction_date, $record)) {
       $address_attributes = $config->getAllAddressAttributes();
 
       $current_address = Api4\Address::get(FALSE)
