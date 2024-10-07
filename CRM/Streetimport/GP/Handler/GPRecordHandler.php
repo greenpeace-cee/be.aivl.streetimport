@@ -7,6 +7,7 @@
 +--------------------------------------------------------------*/
 
 use Civi\Api4\ContributionRecur;
+use Civi\Api4;
 
 /**
  * Abstract class bundle common GP importer functions
@@ -1231,7 +1232,6 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'city',
       'country_id',
       'is_primary',
-      'log_date',
       'postal_code',
       'street_address',
       'supplemental_address_1',
@@ -1262,35 +1262,26 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       ARRAY_FILTER_USE_KEY
     );
 
-    // Query all primary address changes since $minimum_date
-    $changes_query = CRM_Core_DAO::executeQuery("
-      SELECT $attribute_list
-      FROM $dsn_database.log_civicrm_address
-      WHERE
-        contact_id = $contact_id
-        AND is_primary = 1
-        AND log_action != 'Delete'
-        AND log_date >= '$minimum_date'
-      ORDER BY log_date ASC
-    ");
+    // Get the current primary address of the contact
+    $current_address = Api4\Address::get(FALSE)
+      ->addSelect(...$relevant_attributes)
+      ->addWhere('contact_id', '=', $contact_id)
+      ->addWhere('is_primary', '=', TRUE)
+      ->setLimit(1)
+      ->execute()
+      ->first();
 
-    while ($changes_query->fetch()) {
-      // Discard DB query metadata, keep only relevant attributes
-      $change = array_filter(
-        (array) (clone $changes_query),
-        fn ($key) => in_array($key, $relevant_attributes),
-        ARRAY_FILTER_USE_KEY
-      );
+    if (is_null($current_address)) {
+      $this->logger->logDebug("Contact #$contact_id has no current primary address");
+      return TRUE;
+    }
 
-      foreach ($relevant_attributes as $attribute) {
-        if ($attribute == 'log_date') continue; // Can be ignored
-        if ($previous_address[$attribute] == $change[$attribute]) continue; // Hasn't changed
+    foreach ($relevant_attributes as $attribute) {
+      if ($previous_address[$attribute] == $current_address[$attribute]) continue;
 
-        // A relevant attribute has changed
-        $log_date = $change['log_date'];
-        $this->logger->logDebug("Address attribute '$attribute' changed (on $log_date)", $change);
-        return TRUE;
-      }
+      // A relevant attribute has changed
+      $this->logger->logDebug("Address attribute '$attribute' changed", $current_address);
+      return TRUE;
     }
 
     // No relevant changes have been detected
