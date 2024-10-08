@@ -6,6 +6,7 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
+use Civi\Api4;
 use Civi\Api4\Contact;
 
 /**
@@ -56,6 +57,14 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       }
     }
 
+    // Determine the parent activity ID
+    $parent_id = $this->getActivityId($record);
+
+    if (empty($parent_id)) {
+      $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
+      return $this->logger->logError('Could not find parent activity', $record);
+    }
+
     // TODO: remove this workaround once TEDI stops sending files with full country names
     if (!empty($record['Land']) && strlen($record['Land']) != 2) {
       $record['Land'] = '';
@@ -65,7 +74,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     if ($this->isContactReachedResponse($record['Ergebnisnummer']) || $this->isTrue($record, 'gespraech_stattgefunden')) {
       // apply contact base data updates if provided
       // FIELDS: nachname  vorname firma TitelAkademisch TitelAdel TitelAmt  Anrede  geburtsdatum  geburtsjahr strasse hausnummer  hausnummernzusatz Land PLZ Ort email
-      $this->performContactBaseUpdates($contact_id, $record);
+      $this->performContactBaseUpdates($contact_id, $record, $parent_id);
       // Sign up for newsletter
       // FIELDS: emailNewsletter
       if ($this->isTrue($record, 'emailNewsletter')) {
@@ -150,12 +159,6 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     if (!empty($record['Land']) && is_null($this->_getCountryByISOCode($record['Land']))) {
       $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
       return $this->logger->logError("Invalid Country for Contact [{$record['id']}]: '{$record['Land']}'", $record);
-    }
-
-    $parent_id = $this->getActivityId($record);
-    if (empty($parent_id)) {
-      $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
-      return $this->logger->logError('Could not find parent activity', $record);
     }
 
     $createResponse = TRUE;
@@ -359,17 +362,51 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
    *
    * @param $contact_id
    * @param $record
+   * @param $parent_activity_id
    *
    * @throws \CiviCRM_API3_Exception
    */
-  public function performContactBaseUpdates($contact_id, $record) {
+  public function performContactBaseUpdates($contact_id, $record, $parent_activity_id) {
     //Contact Entity
     $contact_params = $this->getPreparedContactParams($record);
     $this->updateContact($contact_params, $contact_id, $record);
 
+    // Selection date
+    $selection_date = Api4\Activity::get(FALSE)
+      ->addSelect('created_date')
+      ->addWhere('id', '=', $parent_activity_id)
+      ->setLimit(1)
+      ->execute()
+      ->first()['created_date'];
+
     //Address Entity
-    $address_params = $this->getPreparedAddressParams($record);
-    $this->createOrUpdateAddress($contact_id, $address_params, $record);
+    if ($this->addressChangeRecordedSince($contact_id, $selection_date, $record)) {
+      $config = CRM_Streetimport_Config::singleton();
+      $address_attributes = $config->getAllAddressAttributes();
+
+      $current_address = Api4\Address::get(FALSE)
+        ->addSelect(...$address_attributes)
+        ->addWhere('contact_id', '=', $contact_id)
+        ->addWhere('is_primary', '=', TRUE)
+        ->setLimit(1)
+        ->execute()
+        ->first();
+
+      $this->createManualUpdateActivity(
+        $contact_id,
+        'Recent address change detected',
+        $record,
+        'activities/ManualAddressUpdate.tpl',
+        [
+          'title'    => 'Recent address change detected',
+          'subtitle' => "The primary address of contact #$contact_id has changed since the last call",
+          'fields'   => $address_attributes,
+          'address'  => $current_address,
+        ]
+      );
+    } else {
+      $this->createOrUpdateAddress($contact_id, $this->getPreparedAddressParams($record), $record);
+    }
 
     //Email Entity
     if (!empty($record['email'])) {
