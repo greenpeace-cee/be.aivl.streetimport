@@ -438,7 +438,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       ->first()['created_date'];
 
     //Address Entity
-    if ($this->addressChangeRecordedSince($contact_id, $selction_date, $record)) {
+    if ($this->addressChangeRecordedSince($contact_id, $selection_date, $record)) {
+      $config = CRM_Streetimport_Config::singleton();
       $address_attributes = $config->getAllAddressAttributes();
 
       $current_address = Api4\Address::get(FALSE)

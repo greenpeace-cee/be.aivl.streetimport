@@ -1272,7 +1272,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       ->first();
 
     if (is_null($current_address)) {
-      $this->logger->logDebug("Contact #$contact_id has no current primary address");
+      $this->logger->logDebug("Contact #$contact_id has no current primary address", $record);
       return TRUE;
     }
 
@@ -1280,7 +1280,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       if ($previous_address[$attribute] == $current_address[$attribute]) continue;
 
       // A relevant attribute has changed
-      $this->logger->logDebug("Address attribute '$attribute' changed", $current_address);
+      $this->logger->logDebug("Address attribute '$attribute' changed", $record);
       return TRUE;
     }
 
