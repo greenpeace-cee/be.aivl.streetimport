@@ -6,6 +6,8 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
+use Civi\Api4;
+
 /**
  * Abstract class bundle common GP importer functions
  *
@@ -1144,6 +1146,92 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'id'         => $contact_id,
       'is_deleted' => TRUE,
     ]) == 1;
+  }
+
+  /**
+   * Check if there has been a change since a specified date
+   *
+   * @param $contact_id
+   * @param $minimum_date
+   * @param $record
+   *
+   * @return bool
+   */
+  public function addressChangeRecordedSince($contact_id, $minimum_date, $record) {
+    $logging = new CRM_Logging_Schema();
+
+    // Assert that logging is enabled
+    if (!$logging->isEnabled()) {
+      $this->logger->logDebug("Logging not enabled, cannot determine whether records have changed.", $record);
+      return FALSE;
+    }
+
+    // Determine the name of the logging database
+    $dsn_database = (
+      defined('CIVICRM_LOGGING_DSN')
+      ? DB::parseDSN(CIVICRM_LOGGING_DSN)
+      : DB::parseDSN(CIVICRM_DSN)
+    )['database'];
+
+    // The following address attributes will be used for comparison
+    $relevant_attributes = [
+      'city',
+      'country_id',
+      'is_primary',
+      'postal_code',
+      'street_address',
+      'supplemental_address_1',
+      'supplemental_address_2',
+    ];
+
+    $attribute_list = implode(', ', $relevant_attributes);
+
+    // Determine the primary address of the contact at the time of $minimum_date
+    $prev_addr_query = CRM_Core_DAO::executeQuery("
+      SELECT $attribute_list
+      FROM $dsn_database.log_civicrm_address
+      WHERE
+        contact_id = $contact_id
+        AND is_primary = 1
+        AND log_action != 'Delete'
+        AND log_date < '$minimum_date'
+      ORDER BY log_date DESC
+      LIMIT 1
+    ");
+
+    if (!$prev_addr_query->fetch()) return TRUE;
+
+    // Discard DB query metadata, keep only relevant attributes
+    $previous_address = array_filter(
+      (array) (clone $prev_addr_query),
+      fn ($key) => in_array($key, $relevant_attributes),
+      ARRAY_FILTER_USE_KEY
+    );
+
+    // Get the current primary address of the contact
+    $current_address = Api4\Address::get(FALSE)
+      ->addSelect(...$relevant_attributes)
+      ->addWhere('contact_id', '=', $contact_id)
+      ->addWhere('is_primary', '=', TRUE)
+      ->setLimit(1)
+      ->execute()
+      ->first();
+
+    if (is_null($current_address)) {
+      $this->logger->logDebug("Contact #$contact_id has no current primary address");
+      return TRUE;
+    }
+
+    foreach ($relevant_attributes as $attribute) {
+      if ($previous_address[$attribute] == $current_address[$attribute]) continue;
+
+      // A relevant attribute has changed
+      $this->logger->logDebug("Address attribute '$attribute' changed", $current_address);
+      return TRUE;
+    }
+
+    // No relevant changes have been detected
+    return FALSE;
   }
 
 }
