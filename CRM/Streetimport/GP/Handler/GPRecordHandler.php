@@ -588,7 +588,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * - else: if new data wouldn't replace ALL the data of the old address -> create ticket (activity) for manual processing
    * - else: update address
    */
-  public function createOrUpdateAddress($contact_id, $address_data, $record) {
+  public function createOrUpdateAddress($contact_id, $address_data, $record, $parent_activity_id = NULL) {
     if (empty($address_data)) return;
 
     // check if address is complete
@@ -1256,10 +1256,9 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     if (!$prev_addr_query->fetch()) return TRUE;
 
     // Discard DB query metadata, keep only relevant attributes
-    $previous_address = array_filter(
+    $previous_address = CRM_Streetimport_Utils::selectKeys(
       (array) (clone $prev_addr_query),
-      fn ($key) => in_array($key, $relevant_attributes),
-      ARRAY_FILTER_USE_KEY
+      $relevant_attributes
     );
 
     // Get the current primary address of the contact

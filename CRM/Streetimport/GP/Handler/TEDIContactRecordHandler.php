@@ -429,42 +429,13 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $contact_params = $this->getPreparedContactParams($record);
     $this->updateContact($contact_params, $contact_id, $record);
 
-    // Selection date
-    $selection_date = Api4\Activity::get(FALSE)
-      ->addSelect('created_date')
-      ->addWhere('id', '=', $parent_activity_id)
-      ->setLimit(1)
-      ->execute()
-      ->first()['created_date'];
-
-    //Address Entity
-    if ($this->addressChangeRecordedSince($contact_id, $selection_date, $record)) {
-      $config = CRM_Streetimport_Config::singleton();
-      $address_attributes = $config->getAllAddressAttributes();
-
-      $current_address = Api4\Address::get(FALSE)
-        ->addSelect(...$address_attributes)
-        ->addWhere('contact_id', '=', $contact_id)
-        ->addWhere('is_primary', '=', TRUE)
-        ->setLimit(1)
-        ->execute()
-        ->first();
-
-      $this->createManualUpdateActivity(
-        $contact_id,
-        'Recent address change detected',
-        $record,
-        'activities/ManualAddressUpdate.tpl',
-        [
-          'title'    => 'Recent address change detected',
-          'subtitle' => "The primary address of contact #$contact_id has changed since the last call",
-          'fields'   => $address_attributes,
-          'address'  => $current_address,
-        ]
-      );
-    } else {
-      $this->createOrUpdateAddress($contact_id, $this->getPreparedAddressParams($record), $record);
-    }
+    // Address Entity
+    $this->createOrUpdateAddress(
+      $contact_id,
+      $this->getPreparedAddressParams($record),
+      $record,
+      $parent_activity_id
+    );
 
     //Email Entity
     if (!empty($record['email'])) {
@@ -1008,135 +979,129 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
    * @param $contact_id
    * @param $address_data
    * @param $record
+   * @param $parent_activity_id
    *
    * @throws \CiviCRM_API3_Exception
+   * @return void
    */
-  public function createOrUpdateAddress($contact_id, $address_data, $record) {
-    if (empty($address_data)) return;
+  public function createOrUpdateAddress($contact_id, $address_data, $record, $parent_activity_id = NULL) {
+    // Discard empty address attributes
+    $address_data = array_filter($address_data);
 
-    $config = CRM_Streetimport_Config::singleton();
-    $all_fields = $config->getAllAddressAttributes();
-    if (!empty($address_data['country_id'])) {
-      // check if fields other than country_id are set
-      $fields_set = FALSE;
-      $fields_without_country = array_diff($all_fields, ['country_id']);
-      foreach ($fields_without_country as $field) {
-        if (!empty($address_data[$field])) {
-          $fields_set = TRUE;
-        }
-      }
-      // if only country is set, skip address update
-      if (!$fields_set) {
-        $this->logger->logDebug("Ignoring address update with only country_id for contact [{$contact_id}]", $record);
-        return;
-      }
-    }
-
-    // check if address is complete
-    $address_complete = TRUE;
-    $required_attributes = $config->getRequiredAddressAttributes();
-    foreach ($required_attributes as $required_attribute) {
-      if (empty($address_data[$required_attribute])) {
-        $address_complete = FALSE;
-      }
-    }
-
-    if (!$address_complete) {
-      $this->logger->logDebug("Manual address update required for [{$contact_id}] due to incomplete address.", $record);
-      return $this->createManualUpdateActivity(
-        $contact_id, 'Manual Address Update', $record, 'activities/ManualAddressUpdate.tpl',
-        [
-          'title'   => 'Please update contact\'s address',
-          'subtitle' => 'New address may be incomplete!',
-          'fields'  => $config->getAllAddressAttributes(),
-          'address' => $address_data
-        ]
-      );
-    }
-
-    // find the old address
-    $old_address_id = $this->getAddressId($contact_id, $record);
-    if (!$old_address_id) {
-      // CREATION (there is no address)
-      $address_data['location_type_id'] = $config->getLocationTypeId();
-      $address_data['contact_id'] = $contact_id;
-      $this->resolveFields($address_data, $record);
-      $this->setProvince($address_data);
-      $this->logger->logDebug("Creating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
-      civicrm_api3('Address', 'create', $address_data);
-      $template_data = [
-        'fields'  => $config->getAllAddressAttributes(),
-        'address' => $address_data,
-      ];
-      return $this->createContactUpdatedActivity(
-        $contact_id,
-        $config->translate('Contact Address Created'),
-        $this->renderTemplate('activities/ManualAddressUpdate.tpl', $template_data),
-        $record
-      );
-    }
-
-    // load old address
-    $old_address = civicrm_api3('Address', 'getsingle', array('id' => $old_address_id));
-
-    // if old and new address is identical do nothing
-    if ($this->isAddressIdentical($address_data, $old_address)) {
-      $this->logger->logDebug("Contact Address not Updated, old and new address is identical [{$contact_id}]: " . json_encode($address_data), $record);
+    // If there is no address data in the record, skip address update
+    if (empty($address_data)) {
+      $this->logger->logDebug("Ignoring address update without address data for contact [$contact_id]", $record);
       return;
     }
 
-    // check if we'd overwrite EVERY one the relevant fields
-    // to avoid inconsistent addresses
-    $full_overwrite = TRUE;
-    foreach ($all_fields as $field) {
-      if (empty($address_data[$field]) && !empty($old_address[$field])) {
-        $full_overwrite = FALSE;
-        break;
-      }
+    $config = CRM_Streetimport_Config::singleton();
+    $address_attributes = $config->getAllAddressAttributes();
+    $address_problems = [];
+
+    // If only country is set, skip address update
+    $address_without_country = CRM_Streetimport_Utils::selectKeys(
+      $address_data,
+      array_diff($address_attributes, ['country_id'])
+    );
+
+    if (empty($address_without_country)) {
+      $this->logger->logDebug("Ignoring address update with only country_id for contact [$contact_id]", $record);
+      return;
     }
 
-    $isCurrentCountryAustria = !empty($record['Land']) && trim($record['Land']) == CRM_Streetimport_GP_Utils_Address::AUSTRIA_ISO_CODE;
-    $isRealAustriaAddress = FALSE;
-    if ($isCurrentCountryAustria && !empty($record['strasse']) && !empty($record['PLZ']) && !empty($record['Ort'])) {
-      $isRealAustriaAddress = CRM_Streetimport_GP_Utils_Address::isRealAddress(
-        trim($record['Ort']),
-        trim($record['PLZ']),
-        trim($record['strasse'])
-      );
+    // Load the current primary address
+    $current_address = $this->getCurrentPrimaryAddress($contact_id, $address_attributes, $record);
+
+    // If current and new address are identical, skip address change
+    if ($this->isAddressIdentical($address_data, $current_address ?? [])) {
+      $encoded_address = json_encode($address_data);
+      $this->logger->logDebug("Contact Address not Updated, old and new address is identical [$contact_id]: $encoded_address", $record);
+      return;
     }
 
-    if ($full_overwrite && (!$isCurrentCountryAustria || ($isCurrentCountryAustria && $isRealAustriaAddress))) {
-      // this is a proper address update
-      $address_data['id'] = $old_address_id;
-      $this->setProvince($address_data);
-      $this->logger->logDebug("Updating address for contact [{$contact_id}]: " . json_encode($address_data), $record);
-      civicrm_api3('Address', 'create', $address_data);
-      $this->addressValidated($contact_id, $record);
-      $template_data = [
-        'fields'  => $config->getAllAddressAttributes(),
-        'address' => $address_data,
-        'old_address' => $old_address
-      ];
-      return $this->createContactUpdatedActivity(
-        $contact_id,
-        $config->translate('Contact Address Updated'),
-        $this->renderTemplate('activities/ManualAddressUpdate.tpl', $template_data),
-        $record
-      );
+    // If the address is missing required attributes, report a problem
+    foreach ($config->getRequiredAddressAttributes() as $attr) {
+      if (isset($address_data[$attr])) continue;
 
-    } else {
-      // this would create inconsistent/invalid addresses -> manual interaction required
-      $this->logger->logDebug("Manual address update required for [{$contact_id}] due to invalid address.", $record);
+      $this->logger->logDebug("Manual address update required for [$contact_id] due to incomplete address.", $record);
+      $address_problems[] = "The new address is missing the required attribute: '$attr'";
+    }
+
+    // If the primary address has changed since the TM selection, report a problem
+    $selection_date = civicrm_api3('Activity', 'getvalue', [
+      'id'     => $parent_activity_id,
+      'return' => "created_date",
+    ]);
+
+    if ($this->addressChangeRecordedSince($contact_id, $selection_date, $record)) {
+      $this->logger->logDebug("Manual address update required for [$contact_id] due to recent address change.", $record);
+      $address_problems[] = "The primary address of contact [$contact_id] has changed recently";
+    }
+
+    // If the address is an invalid Austrian address, report a problem
+    $is_austria = trim($record['Land'] ?? '') == CRM_Streetimport_GP_Utils_Address::AUSTRIA_ISO_CODE;
+
+    if ($is_austria && !CRM_Streetimport_GP_Utils_Address::isRealAustrianAddress($record)) {
+      $this->logger->logDebug("Manual address update required for [$contact_id] due to invalid address.", $record);
+      $address_problems[] = 'The new address was not found in the address reference';
+    }
+
+    if (!empty($address_problems)) {
       return $this->createManualUpdateActivity(
         $contact_id, 'Manual Address Update', $record, 'activities/ManualAddressUpdate.tpl',
         [
           'title'       => 'Please update contact\'s address',
-          'subtitle'    => 'New address was not found in address reference!',
-          'fields'      => $config->getAllAddressAttributes(),
+          'subtitle'    => 'The address could not be automatically created/updated',
+          'problems'    => $address_problems,
+          'fields'      => $address_attributes,
           'address'     => $address_data,
-          'old_address' => $old_address
+          'old_address' => $current_address,
+        ]
+      );
+    }
+
+    if (is_null($current_address)) {
+      // If there is no current primary address, create a new one
+      $address_data['location_type_id'] = $config->getLocationTypeId();
+      $address_data['contact_id'] = $contact_id;
+      $this->resolveFields($address_data, $record);
+      $this->setProvince($address_data);
+
+      $encoded_address = json_encode($address_data);
+      $this->logger->logDebug("Creating address for contact [$contact_id]: $encoded_address", $record);
+
+      civicrm_api3('Address', 'create', $address_data);
+
+      $update_title = $config->translate('Contact Address Created');
+
+      $update_details = $this->renderTemplate('activities/ManualAddressUpdate.tpl', [
+        'title' => $update_title,
+        'fields'  => $address_attributes,
+        'address' => $address_data,
+        'old_address' => [],
+      ]);
+    } else {
+      // Otherwise update the existing address
+      $this->setProvince($address_data);
+
+      $encoded_address = json_encode($address_data);
+      $this->logger->logDebug("Updating address for contact [$contact_id]: $encoded_address", $record);
+
+      civicrm_api3('Address', 'create', [ 'id' => $current_address_id ] + $address_data);
+
+      $this->addressValidated($contact_id, $record);
+
+      $update_title = $config->translate('Contact Address Updated');
+
+      $update_details = $this->renderTemplate('activities/ManualAddressUpdate.tpl', [
+        'title'       => $update_title,
+        'fields'      => $address_attributes,
+        'address'     => $address_data,
+        'old_address' => $current_address,
       ]);
     }
+
+    $this->createContactUpdatedActivity($contact_id, $update_title, $update_details, $record);
   }
 
   /**
@@ -1430,4 +1395,22 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     $this->createResponseActivity($contact_id, $title, $record);
   }
 
+  /**
+   * Get the current primary address for a contact
+   *
+   * @param $contact_id
+   * @param $attributes
+   * @param $record
+   *
+   * @return array | null
+   */
+   private function getCurrentPrimaryAddress($contact_id, $attributes, $record) {
+     $address_id = $this->getAddressId($contact_id, $record);
+
+     if (is_null($address_id)) return NULL;
+
+     $address = civicrm_api3('Address', 'getsingle', [ 'id' => $address_id ]);
+
+     return CRM_Streetimport_Utils::selectKeys(array_filter($address), $attributes);
+   }
 }
