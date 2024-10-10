@@ -221,13 +221,18 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
 
   private function reviveContract($membershipId) {
     $config = CRM_Streetimport_Config::singleton();
-    $reviveModification = array(
-      'action' => 'revive',
-      'id' => $membershipId,
-      'medium_id' => $this->getMediumID(),
-      'source_contact_id' => (int) $config->getFundraiserContactID(),
+
+    $next_debit_date = new DateTimeImmutable(
+      civicrm_api3('Contract', 'start_date', [ 'payment_adapter' => 'sepa_mandate' ])['values'][0]
     );
-    civicrm_api3('Contract', 'Modify', $reviveModification);
+
+    civicrm_api3('Contract', 'Modify', [
+      'action'            => 'revive',
+      'id'                => $membershipId,
+      'cycle_day'         => $next_debit_date->format('j'),
+      'medium_id'         => $this->getMediumID(),
+      'source_contact_id' => (int) $config->getFundraiserContactID(),
+    ]);
   }
 
   private function cancelContract($membershipId, $responseCode) {
