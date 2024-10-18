@@ -1,6 +1,13 @@
 <h2>{$title}</h2>
 {if !empty($subtitle)}
   <h3 class="crm-error">{$subtitle}</h3>
+  {if !empty($problems)}
+    <ul>
+      {foreach from=$problems item=problem}
+        <li>{$problem}</li>
+      {/foreach}
+    </ul>
+  {/if}
 {/if}
 <table>
   <thead>
