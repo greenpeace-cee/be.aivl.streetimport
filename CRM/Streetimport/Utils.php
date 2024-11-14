@@ -829,4 +829,21 @@ class CRM_Streetimport_Utils {
     return $activity;
   }
 
+  /**
+   * Select only specified entries from an associative array
+   *
+   * @param array $array
+   * @param array $key
+   * @return array
+   * @access public
+   * @static
+   */
+  public static function selectKeys($array, $keys) {
+    return array_filter(
+      $array,
+      fn ($key) => in_array($key, $keys),
+      ARRAY_FILTER_USE_KEY
+    );
+  }
+
 }

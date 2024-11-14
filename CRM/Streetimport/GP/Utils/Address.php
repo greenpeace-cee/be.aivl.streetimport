@@ -47,4 +47,19 @@ class CRM_Streetimport_GP_Utils_Address {
     }
   }
 
+  /**
+   * Check if a record contains a real Austrian address
+   *
+   * @param $record
+   *
+   * @return bool
+   */
+   public static function isRealAustrianAddress($record) {
+     return self::isRealAddress(
+       trim($record['Ort'] ?? ''),
+       trim($record['PLZ'] ?? ''),
+       trim($record['strasse'] ?? '')
+     );
+   }
+
 }

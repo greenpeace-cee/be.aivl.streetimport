@@ -207,7 +207,7 @@ class CRM_Streetimport_ImportResult {
    * @param $errorType
    * @see https://github.com/CiviCooP/be.aivl.streetimport/issues/11
    */
-  protected function createErrorActivity($message, $record, $title = "Import Error", $errorType) {
+  protected function createErrorActivity($message, $record, $title = "Import Error", $errorType = NULL) {
     try {  // AVOID raising another exception leading to this very handler
 
       // create the activity
