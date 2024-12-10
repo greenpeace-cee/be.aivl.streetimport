@@ -1,7 +1,5 @@
 <?php
 
-use Tdely\Luhn\Luhn;
-
 /**
  * GP TM Response Handler (for DD)
  *
@@ -46,11 +44,6 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
     if (!$date || $date->format('d.m.Y H:i') != $record['responsedatum']) {
       $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
       return $this->logger->logError("Invalid date value {$record['responsedatum']} in field 'responsedatum'.", $record);
-    }
-    // $record['contact_id'] contains contact_id and a check digit
-    if (!Luhn::isValid($record['contact_id'])) {
-      $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
-      return $this->logger->logError("Invalid checksum for contact_id value {$record['contact_id']}.", $record);
     }
     // set $record['id'] to the actual contact ID (without the check digit)
     $record['id'] = substr($record['contact_id'], 0, -1);

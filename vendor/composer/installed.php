@@ -1,33 +1,23 @@
-<?php return array (
-  'root' => 
-  array (
-    'pretty_version' => 'dev-master',
-    'version' => 'dev-master',
-    'aliases' => 
-    array (
+<?php return array(
+    'root' => array(
+        'name' => 'greenpeace-cee/be.aivl.streetimport',
+        'pretty_version' => 'dev-master',
+        'version' => 'dev-master',
+        'reference' => '88383bdfcd9db3cdbac3f6213e1a799a58817d0a',
+        'type' => 'civicrm-ext',
+        'install_path' => __DIR__ . '/../../',
+        'aliases' => array(),
+        'dev' => true,
     ),
-    'reference' => '51b6086f0241b6924e306810d6acbac9cbbfaea6',
-    'name' => 'greenpeace-cee/be.aivl.streetimport',
-  ),
-  'versions' => 
-  array (
-    'greenpeace-cee/be.aivl.streetimport' => 
-    array (
-      'pretty_version' => 'dev-master',
-      'version' => 'dev-master',
-      'aliases' => 
-      array (
-      ),
-      'reference' => '51b6086f0241b6924e306810d6acbac9cbbfaea6',
+    'versions' => array(
+        'greenpeace-cee/be.aivl.streetimport' => array(
+            'pretty_version' => 'dev-master',
+            'version' => 'dev-master',
+            'reference' => '88383bdfcd9db3cdbac3f6213e1a799a58817d0a',
+            'type' => 'civicrm-ext',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
     ),
-    'tdely/luhn' => 
-    array (
-      'pretty_version' => 'v1.0.0',
-      'version' => '1.0.0.0',
-      'aliases' => 
-      array (
-      ),
-      'reference' => 'd75f9c268c5e5fa38d913bd879330634432e6e95',
-    ),
-  ),
 );

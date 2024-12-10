@@ -7,8 +7,5 @@
             "name": "Patrick Figel",
             "email": "pfigel@greenpeace.org"
         }
-    ],
-    "require": {
-        "tdely/luhn": "^1.0"
-    }
+    ]
 }
