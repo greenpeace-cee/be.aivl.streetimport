@@ -18,13 +18,25 @@
   <version>GP-2.5.60</version>
   <develStage>stable</develStage>
   <compatibility>
-    <ver>4.7</ver>
+    <ver>5.45</ver>
   </compatibility>
   <comments>Based on AIVL's Street Recruitment Import</comments>
   <civix>
     <namespace>CRM/Streetimport</namespace>
+    <format>24.09.1</format>
   </civix>
   <requires>
     <ext>org.project60.sepa</ext>
   </requires>
+  <mixins>
+    <mixin>menu-xml@1.0.0</mixin>
+    <mixin>setting-php@1.0.0</mixin>
+    <mixin>smarty-v2@1.0.3</mixin>
+    <mixin>entity-types-php@2.0.0</mixin>
+  </mixins>
+  <classloader>
+    <psr0 prefix="CRM_" path="."/>
+    <psr4 prefix="Civi\" path="Civi"/>
+  </classloader>
+  <upgrader>CiviMix\Schema\Streetimport\AutomaticUpgrader</upgrader>
 </extension>
