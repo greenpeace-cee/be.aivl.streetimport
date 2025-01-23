@@ -26,6 +26,8 @@
     <format>24.09.1</format>
   </civix>
   <requires>
+    <ext>de.systopia.identitytracker</ext>
+    <ext>org.project60.banking</ext>
     <ext>org.project60.sepa</ext>
   </requires>
   <mixins>
