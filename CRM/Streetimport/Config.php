@@ -95,7 +95,8 @@ class CRM_Streetimport_Config {
    * @return the
    */
   public static function getClassPrefix() {
-    return 'CRM_Streetimport_' . self::getDomain() . '_';
+    $domain = self::getDomain();
+    return 'CRM_Streetimport_' . (is_null($domain) ? '' : $domain . '_');
   }
 
 
