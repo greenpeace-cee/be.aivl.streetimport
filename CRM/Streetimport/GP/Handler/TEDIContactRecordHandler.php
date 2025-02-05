@@ -70,6 +70,11 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       // FIELDS: emailNewsletter
       if ($this->isTrue($record, 'emailNewsletter')) {
         $newsletter_group_id = $config->getNewsletterGroupID();
+        \Civi\Api4\Contact::update(FALSE)
+          ->addValue('do_not_email', FALSE)
+          ->addValue('is_opt_out', FALSE)
+          ->addWhere('id', '=', $contact_id)
+          ->execute();
         $this->addContactToGroup($contact_id, $newsletter_group_id, $record);
       }
       // If "X" then set  "rts_counter" in table "civicrm_value_address_statistics"  to "0"
