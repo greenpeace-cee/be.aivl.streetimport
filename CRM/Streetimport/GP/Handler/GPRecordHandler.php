@@ -6,6 +6,8 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
+use Civi\Api4\ContributionRecur;
+
 /**
  * Abstract class bundle common GP importer functions
  *
@@ -386,14 +388,9 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $defer_payment_start = FALSE;
     }
 
-    // Bank accounts
-    if (empty($record['IBAN'])) {
-      $this->logger->logError("Contract couldn't be created, IBAN is missing.", $record);
-      return;
-    }
 
-    $from_ba = CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN']);
-    $to_ba = CRM_Contract_BankingLogic::getCreditorBankAccount();
+
+
 
     $contract_data = [
       'action'                                  => $action,
@@ -403,11 +400,34 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'medium_id'                               => $this->getMediumID($record),
       'membership_payment.cycle_day'            => $cycle_day,
       'membership_payment.defer_payment_start'  => $defer_payment_start,
-      'membership_payment.from_ba'              => $from_ba,
       'membership_payment.membership_annual'    => $annual_amount,
       'membership_payment.membership_frequency' => $frequency,
-      'membership_payment.to_ba'                => $to_ba,
     ];
+
+    if (is_null(CRM_Sepa_Logic_Verification::verifyIBAN($record['IBAN']))) {
+      // valid IBAN, update/revive as SEPA mandate
+      $contract_data['payment_method.adapter'] = 'sepa_mandate';
+      $contract_data['membership_payment.from_ba'] = CRM_Contract_BankingLogic::getOrCreateBankAccount($contact_id, $record['IBAN']);
+      $contract_data['membership_payment.to_ba'] = CRM_Contract_BankingLogic::getCreditorBankAccount();
+    }
+    else {
+      // could be Adyen shopperReference. Check if a matching ContributionRecur
+      // exists
+      $contributionRecur = ContributionRecur::get(FALSE)
+        ->addSelect('payment_token_id.id')
+        ->addWhere('contact_id', '=', $this->getContactID($record))
+        ->addWhere('processor_id', '=', $record['IBAN'])
+        ->addWhere('payment_processor_id.class_name', '=', 'Payment_Adyen')
+        ->execute()
+        ->first();
+      if (!empty($contributionRecur['payment_token_id.id'])) {
+        $contract_data['payment_method.adapter'] = 'adyen';
+        $contract_data['payment_method.payment_token_id'] = $contributionRecur['payment_token_id.id'];
+      }
+      else {
+        return $this->logger->logError("Invalid value supplied for column IBAN. Should either be an IBAN or an Adyen shopperReference (ContributionRecur.processor_id).", $record);
+      }
+    }
 
     // Add membership type change (if requested)
     if ($new_type) {
