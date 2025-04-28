@@ -189,7 +189,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
           'is_deleted' => 1));
         // FIXME: anonymisation not yet available
         $this->tagContact($contact_id, 'anonymise', $record);
-        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, 'XX02', $record);
+        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, NULL, $record);
         break;
 
       case 'disable':
@@ -197,7 +197,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
         civicrm_api3('Contact', 'create', array(
           'id'         => $contact_id,
           'is_deleted' => 1));
-        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, 'XX02', $record);
+        $retval['cancelled_contracts'] = $this->cancelAllContracts($contact_id, NULL, $record);
         break;
 
       case 'deceased':
