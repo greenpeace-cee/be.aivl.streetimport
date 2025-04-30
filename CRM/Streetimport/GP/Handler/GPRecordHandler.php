@@ -823,7 +823,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    * @param $messageOrTemplate either the full details body of the activity (if $data empty)
    *                            or a template path (if $data not empty), in which case $data will be assigned as template variables
    */
-  public function createManualUpdateActivity($contact_id, $subject, $record, $messageOrTemplate=NULL, $data=NULL) {
+  public function createManualUpdateActivity($contact_id, $subject, $record, $messageOrTemplate=NULL, $data=NULL, array $tags = []) {
     $config = CRM_Streetimport_Config::singleton();
 
     // first get contact called activity type
@@ -889,7 +889,17 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       }
     }
 
-    $this->createActivity($activityParams, $record, array($config->getFundraiserContactID()));
+    $activity = $this->createActivity($activityParams, $record, array($config->getFundraiserContactID()));
+    if (count($tags) > 0) {
+      foreach ($tags as $tag) {
+        \Civi\Api4\EntityTag::create(FALSE)
+          ->addValue('entity_table', 'civicrm_activity')
+          ->addValue('entity_id', $activity->id)
+          ->addValue('tag_id:name', $tag)
+          ->execute();
+      }
+    }
+    return $activity;
   }
 
   protected function resolveLabels($data) {

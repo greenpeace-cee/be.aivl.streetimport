@@ -311,7 +311,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     // Add a note if requested
     // FIELDS: BemerkungFreitext
     if (!empty($record['BemerkungFreitext'])) {
-      $this->createManualUpdateActivity($contact_id, $record['BemerkungFreitext'], $record);
+      $this->createManualUpdateActivity($contact_id, $record['BemerkungFreitext'], $record, NULL, NULL, [$this->getNoteTaskCategoryTag($record)]);
     }
 
     // process additional fields
@@ -350,6 +350,15 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
     }
 
     return $record['Stornogrund'];
+  }
+
+  protected function getNoteTaskCategoryTag($record) {
+    $project_type = strtolower(substr($this->file_name_data['project1'], 0, 3));
+    switch ($project_type) {
+      case TM_PROJECT_TYPE_LEGACY:
+        return 'Task Category: Legacy Freie Bemerkung';
+    }
+    return 'Task Category: TM Freie Bemerkung';
   }
 
   /**
@@ -721,7 +730,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
        case 'Spende wurde übernommen, Daten geändert':
        case 'erhält Post doppelt':
          // for these cases a manual update is required
-         $this->createManualUpdateActivity($contact_id, $note, $record);
+         $this->createManualUpdateActivity($contact_id, $note, $record, NULL, NULL, [$this->getNoteTaskCategoryTag($record)]);
          $this->logger->logDebug("Manual update ticket created for contact [{$contact_id}]", $record);
          break;
 
