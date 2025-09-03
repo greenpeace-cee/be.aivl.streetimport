@@ -108,6 +108,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
 
       case TM_PROJECT_TYPE_SURVEY:
       case TM_PROJECT_TYPE_WELCOME:
+      case TM_PROJECT_TYPE_HAPPY:
         // Nothing to do here?
         break;
 
@@ -177,7 +178,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         // this is a conversion/upgrade
         $contract_id = $this->getContractID($contact_id, $record);
         if (empty($contract_id)) {
-          if ($project_type == TM_PROJECT_TYPE_WELCOME) {
+          if (in_array($project_type, [TM_PROJECT_TYPE_WELCOME, TM_PROJECT_TYPE_HAPPY])) {
             // Welcome just uses this as a response without changes if $contract_id is empty
             break;
           }

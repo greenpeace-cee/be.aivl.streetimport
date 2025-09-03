@@ -50,6 +50,7 @@ define('TM_PROJECT_TYPE_MD_UPGRADE',   'mdup');//     subtype 1: upgrade
 define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umwandlung)
 define('TM_PROJECT_TYPE_POSTALRETURN', 'rts'); // Recherche
 define('TM_PROJECT_TYPE_WELCOME', 'wel'); // Welcome
+define('TM_PROJECT_TYPE_HAPPY', 'hap'); // Happy
 
 /**
  * Abstract class bundle common GP importer functions
