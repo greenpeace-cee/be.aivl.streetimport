@@ -44,7 +44,8 @@ define('TM_PROJECT_TYPE_UPGRADE',      'upg'); // Upgrade
 define('TM_PROJECT_TYPE_REACTIVATION', 'rea'); // Reaktivierung
 define('TM_PROJECT_TYPE_RESEARCH',     'rec'); // Recherche
 define('TM_PROJECT_TYPE_SURVEY',       'umf'); // Umfrage
-define('TM_PROJECT_TYPE_LEGACY',       'leg'); // Legacy
+define('TM_PROJECT_TYPE_LEGACY',       'leg'); // Legacy Qualification
+define('TM_PROJECT_TYPE_LEGACY_ACQUISITION', 'lac'); // Legacy Acquisition
 define('TM_PROJECT_TYPE_MIDDLE_DONOR', 'mdu'); // Middle-Donor - two subtypes:
 define('TM_PROJECT_TYPE_MD_UPGRADE',   'mdup');//     subtype 1: upgrade
 define('TM_PROJECT_TYPE_MD_CONVERSION','mdum');//     subtype 2: conversion (Umwandlung)
