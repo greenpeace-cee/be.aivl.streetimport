@@ -83,7 +83,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
      *           VERIFICATION           *
      ***********************************/
     $project_type_full = strtolower($this->file_name_data['project1']);
-    $project_type = strtolower(substr($this->file_name_data['project1'], 0, 3));
+    $project_type = $this->getProjectType();
     $modify_command = 'update';
     $contract_id = NULL;
     $contract_id_required = FALSE;
@@ -125,6 +125,21 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         if ($case_count != 1) {
           $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
           return $this->logger->logError("Legacy contact should have exactly one legacy case, found $case_count", $record);
+        }
+        break;
+
+      case TM_PROJECT_TYPE_LEGACY_ACQUISITION:
+        $case_count = \Civi\Api4\CiviCase::get(FALSE)
+          ->selectRowCount()
+          ->addJoin('CaseContact AS case_contact', 'INNER', ['id', '=', 'case_contact.case_id'])
+          ->addWhere('case_type_id:name', '=', 'legat')
+          ->addWhere('is_deleted', '=', FALSE)
+          ->addWhere('case_contact.contact_id', '=', $contact_id)
+          ->execute()
+          ->count();
+        if ($case_count > 0) {
+          $this->logger->logImport($record, FALSE, $config->translate('TM Contact'));
+          return $this->logger->logError("Legacy Acquisition import failed: Contact already has a legacy case (found $case_count)", $record);
         }
         break;
 
@@ -291,6 +306,35 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         break;
 
       default:
+        // Check if this is a Legacy Acquisition response (100-119)
+        if ($record['Ergebnisnummer'] >= 100 && $record['Ergebnisnummer'] <= 119) {
+          // Parse ErgebnisText: "teilgenommen Legacy <CaseStatusLabel>"
+          if (preg_match('/^teilgenommen Legacy (.+)$/', $record['ErgebnisText'], $matches)) {
+            $case_status_label = trim($matches[1]);
+
+            if (empty($case_status_label)) {
+              return $this->logger->logError("Unknown case status label '{$case_status_label}' for Ergebnisnummer {$record['Ergebnisnummer']}", $record);
+            } else {
+              $case = \Civi\Api4\CiviCase::create(FALSE)
+                ->addValue('contact_id', $contact_id)
+                ->addValue('case_type_id:name', 'legat')
+                ->addValue('status_id:label', $case_status_label)
+                ->addValue('subject', 'TM Akquise')
+                ->addValue('start_date', date('Y-m-d', strtotime($this->getDate($record))))
+                ->addValue('medium_id:name', 'phone')
+                ->execute()
+                ->first();
+              \Civi\Api4\Activity::update(FALSE)
+                ->addValue('Communication_Channel.Channel', $this->getLegacyChannel($record))
+                ->addWhere('case_id', '=', $case['id'])
+                ->addWhere('activity_type_id:name', '=', 'Open Case')
+                ->execute();
+            }
+          } else {
+            return $this->logger->logError("Invalid ErgebnisText format for Ergebnisnummer {$record['Ergebnisnummer']}: expected 'teilgenommen Legacy <CaseStatusLabel>', got '{$record['ErgebnisText']}'", $record);
+          }
+        }
+
         // in all other cases nothing needs to happen except the
         //  to create the reponse activity, see below.
     }
@@ -354,12 +398,15 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   }
 
   protected function getNoteTaskCategoryTag($record) {
-    $project_type = strtolower(substr($this->file_name_data['project1'], 0, 3));
-    switch ($project_type) {
+    switch ($this->getProjectType()) {
       case TM_PROJECT_TYPE_LEGACY:
         return 'Task Category: Legacy Freie Bemerkung';
     }
     return 'Task Category: TM Freie Bemerkung';
+  }
+
+  protected function getProjectType(): string {
+    return strtolower(substr($this->file_name_data['project1'], 0, 3));
   }
 
   /**
@@ -746,7 +793,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
            'target_contact_id'   => (int) $contact_id,
            'case_id'             => $this->getCaseIdByType($contact_id, 'Legat'),
            'medium_id'           => $this->getMediumID($record),
-           $channel_field        => $this->getLegacyChannel(),
+           $channel_field        => $this->getLegacyChannel($record),
          ];
          $this->createActivity($activityParams, $record);
          $this->logger->logDebug("Created 'Ratgeber verschickt' activity for contact [{$contact_id}]", $record);
@@ -1093,11 +1140,23 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
   /**
    * Get the value for legacy (as in "dead people", not "legacy code") channel field
    *
-   * @return int
    */
-  private function getLegacyChannel() {
+  private function getLegacyChannel($record): ?int {
     // the option group for this field has the awesome name "channel_20180528131747", might as well just hardcode
-    return 7;
+    switch ($this->getProjectType()) {
+      case TM_PROJECT_TYPE_LEGACY_ACQUISITION:
+        // TM_Akquise
+        return 3;
+
+      case TM_PROJECT_TYPE_LEGACY:
+        // TM_Qualifizierung
+        return 7;
+
+      default:
+        $this->logger->logWarning("Unable to determine legacy channel for project type '{$this->getProjectType()}'", $record);
+        break;
+    }
+    return NULL;
   }
 
 
@@ -1147,7 +1206,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
         'target_contact_id'   => (int) $contact_id,
         'case_id'             => $case_id,
         'medium_id'           => $this->getMediumID($record),
-        $channel_field        => $this->getLegacyChannel(),
+        $channel_field        => $this->getLegacyChannel($record),
       ];
       $this->createActivity($activityParams, $record);
     }
