@@ -815,6 +815,10 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
          $this->logger->logDebug("Added contact [{$contact_id}] to group 'keine Legacy Kommunikation'.", $record);
          break;
 
+       case 'Newsletter opt-in':
+         $this->addOptIn($record, [$config->getNewsletterGroupID()]);
+         break;
+
        default:
          // maybe it's a T-Shirt?
          if (preg_match('#^(?P<shirt_type>M|W)/(?P<shirt_size>[A-Z]{1,2})/(?P<shirt_name>.+)?$#', $note, $match)) {
