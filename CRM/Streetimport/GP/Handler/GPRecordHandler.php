@@ -1176,4 +1176,28 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     ]) == 1;
   }
 
+  protected function addOptIn($record, array $groupIds, ?array $clearSuppressionFlags = ['do_not_email', 'is_opt_out']) {
+    foreach ($groupIds as $groupId) {
+      $this->addContactToGroup($this->getContactID($record), $groupId, $record);
+    }
+    if (!empty($clearSuppressionFlags) && count($clearSuppressionFlags) > 0) {
+      \Civi\Api4\Contact::update(FALSE)
+        ->setValues(array_fill_keys($clearSuppressionFlags, FALSE))
+        ->addWhere('id', '=', $this->getContactID($record))
+        ->execute();
+    }
+  }
+
+  protected function addOptOut($record, array $groupIds, ?array $setSuppressionFlags = ['is_opt_out']) {
+    foreach ($groupIds as $groupId) {
+      $this->removeContactFromGroup($this->getContactID($record), $groupId, $record);
+    }
+    if (!empty($setSuppressionFlags) && count($setSuppressionFlags) > 0) {
+      \Civi\Api4\Contact::update(FALSE)
+        ->setValues(array_fill_keys($setSuppressionFlags, TRUE))
+        ->addWhere('id', '=', $this->getContactID($record))
+        ->execute();
+    }
+  }
+
 }

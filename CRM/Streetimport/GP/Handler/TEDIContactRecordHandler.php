@@ -69,8 +69,9 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
       // Sign up for newsletter
       // FIELDS: emailNewsletter
       if ($this->isTrue($record, 'emailNewsletter')) {
+        $this->logger->logWarning("Field emailNewsletter is deprecated, should use Bemerkung 'Newsletter opt-in' instead", $record);
         $newsletter_group_id = $config->getNewsletterGroupID();
-        $this->addContactToGroup($contact_id, $newsletter_group_id, $record);
+        $this->addOptIn($record, [$newsletter_group_id], NULL);
       }
       // If "X" then set  "rts_counter" in table "civicrm_value_address_statistics"  to "0"
       // FIELDS: AdresseGeprueft
@@ -1301,7 +1302,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           $config->getGPCustomFieldKey('shirt_type')        => $data['shirt_type'] ?? NULL,
           $config->getGPCustomFieldKey('shirt_size')        => $data['shirt_size'] ?? NULL,
           $config->getGPCustomFieldKey('free_order')        => $data['free_order'] ?? 0,
-          $config->getGPCustomFieldKey('linked_membership') => $data['linked_membership'] ?? $contract_id,
+          // only set linked_membership if this is not a free order
+          $config->getGPCustomFieldKey('linked_membership') => (($data['free_order'] ?? FALSE) ? NULL : ($data['linked_membership'] ?? $contract_id)),
           'status_id'                                       => $status_id,
         ]);
         break;
