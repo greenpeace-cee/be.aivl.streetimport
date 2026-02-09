@@ -201,7 +201,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           // make sure this is no mistake (see GP-1123)
           if ($contract_id_required) {
             // this whole line should not be imported (see GP-1123)
-            return $this->logger->abort("Format violation, the record type requires a contract_id.", $record);
+            return $this->logger->logError("Format violation, the record type requires a contract_id.", $record);
           } else {
             $contract_id = $this->createContract($contact_id, $record);
             if (!empty($parent_id)) {
