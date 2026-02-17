@@ -435,23 +435,31 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     }
 
     $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_data), $record);
-    civicrm_api3('Contract', 'modify', $contract_data);
+    $result = civicrm_api3('Contract', 'modify', $contract_data);
+    // set parent activity of update/revive activity (if provided)
+    if (!empty($result['change_activity_id']) && !empty($this->getActivityId($record))) {
+      $this->setParentActivity($result['change_activity_id'], $this->getActivityId($record));
+    }
     $this->_contract_changes_produced = TRUE;
     $this->logger->logDebug("Update for membership [{$contract_id}] scheduled.", $record);
 
     // Schedule end (if requested)
     if (!empty($record['EinzugsEndeDatum'])) {
-      $contract_modification = array(
+      $contract_modification = [
         'action'                                           => 'cancel',
         'id'                                               => $contract_id,
         'medium_id'                                        => $this->getMediumID($record),
         'campaign_id'                                      => $this->getCampaignID($record),
         'membership_cancellation.membership_cancel_reason' => 'XX02',
         'date'                                             => date('Y-m-d H:i:s', strtotime($record['EinzugsEndeDatum'])),
-        );
+      ];
 
       $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_modification), $record);
-      civicrm_api3('Contract', 'modify', $contract_modification);
+      $cancelResult = civicrm_api3('Contract', 'modify', $contract_modification);
+      // set parent activity of cancel activity (if provided)
+      if (!empty($cancelResult['change_activity_id']) && !empty($this->getActivityId($record))) {
+        $this->setParentActivity($cancelResult['change_activity_id'], $this->getActivityId($record));
+      }
       $this->_contract_changes_produced = TRUE;
       $this->logger->logDebug("Contract (membership) [{$contract_id}] scheduled for termination.", $record);
     }
@@ -482,8 +490,6 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
    */
   public function cancelContract($membership, $record, $params = array()) {
     try {
-      $config = CRM_Streetimport_Config::singleton();
-      $end_date = date('YmdHis', strtotime('yesterday')); // end_date has to be now, not $this->getDate()
 
       // first load the membership
       if (empty($membership)) {
@@ -511,7 +517,13 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       }
 
       $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_modification), $record);
-      civicrm_api3('Contract', 'modify', $contract_modification);
+      $result = civicrm_api3('Contract', 'modify', $contract_modification);
+
+      // set parent activity of cancel activity (if provided)
+      if (!empty($result['change_activity_id']) && !empty($this->getActivityId($record))) {
+        $this->setParentActivity($result['change_activity_id'], $this->getActivityId($record));
+      }
+
       $this->_contract_changes_produced = TRUE;
       $this->logger->logDebug("Contract (membership) [{$membership['id']}] scheduled for termination.", $record);
     } catch (Exception $e) {
@@ -1134,6 +1146,13 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $parent_id_field => $parentActivityId,
       'skip_handler'   => TRUE,
     ]);
+  }
+
+  protected function setParentActivity($childActivityId, $parentActivityId) {
+    \Civi\Api4\Activity::update(FALSE)
+      ->addValue('activity_hierarchy.parent_activity_id', $parentActivityId)
+      ->addWhere('id', '=', $childActivityId)
+      ->execute();
   }
 
   /**
