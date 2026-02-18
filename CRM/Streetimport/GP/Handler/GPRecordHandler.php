@@ -1189,6 +1189,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
   }
 
   protected function addOptOut($record, array $groupIds, ?array $setSuppressionFlags = ['is_opt_out']) {
+    // TODO: add Opt-Out activities
     foreach ($groupIds as $groupId) {
       $this->removeContactFromGroup($this->getContactID($record), $groupId, $record);
     }

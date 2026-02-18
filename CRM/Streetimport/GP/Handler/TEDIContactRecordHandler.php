@@ -819,6 +819,15 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
          $this->addOptIn($record, [$config->getNewsletterGroupID()]);
          break;
 
+       case 'Newsletter opt-out':
+         $groupsToRemove = [$config->getNewsletterGroupID()];
+         $group = CRM_Streetimport_Utils::getGroupWithName('Donation_Info_30');
+         if (!empty($group['id'])) {
+           $groupsToRemove[] = $group['id'];
+         }
+         $this->addOptOut($record, $groupsToRemove);
+         break;
+
        default:
          // maybe it's a T-Shirt?
          if (preg_match('#^(?P<shirt_type>M|W)/(?P<shirt_size>[A-Z]{1,2})/(?P<shirt_name>.+)?$#', $note, $match)) {
