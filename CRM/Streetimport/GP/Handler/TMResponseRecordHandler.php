@@ -126,9 +126,6 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
       case TM_KONTAKT_RESPONSE_KONTAKT_LOESCHEN:
         // contact wants to be erased from GP database
         $result = $this->disableContact($contact_id, 'erase', $record);
-        foreach ($result['cancelled_contracts'] as $membership_id) {
-          $this->setContractActivityParent($membership_id, $parent_id);
-        }
         break;
 
       case TM_KONTAKT_RESPONSE_NICHT_KONTAKTIEREN:
@@ -145,9 +142,6 @@ class CRM_Streetimport_GP_Handler_TMResponseRecordHandler extends CRM_Streetimpo
       case TM_KONTAKT_RESPONSE_KONTAKT_VERSTORBEN:
         // contact should be disabled
         $result = $this->disableContact($contact_id, 'deceased', $record);
-        foreach ($result['cancelled_contracts'] as $membership_id) {
-          $this->setContractActivityParent($membership_id, $parent_id);
-        }
         break;
 
       case TM_KONTAKT_RESPONSE_KONTAKT_KEIN_ANSCHLUSS:
