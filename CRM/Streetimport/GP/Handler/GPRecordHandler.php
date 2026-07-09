@@ -6,6 +6,8 @@
 | http://www.systopia.de/                                      |
 +--------------------------------------------------------------*/
 
+use Civi\Api4\Activity;
+use Civi\Api4\Campaign;
 use Civi\Api4\ContributionRecur;
 
 /**
@@ -302,6 +304,15 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     $api_result = civicrm_api3('Contract', 'create', $contract_data);
     $this->_contract_changes_produced = TRUE;
 
+    if (!empty($record['engagement_campaign']) && !empty($api_result['id'])) {
+      // set engagement campaign
+      Activity::update(FALSE)
+        ->addValue('engagement_campaign.engagement_campaign', $this->getEngagementCampaignId($record))
+        ->addWhere('source_record_id', '=', $api_result['id'])
+        ->addWhere('activity_type_id:name', '=', 'Contract_Signed')
+        ->execute();
+    }
+
     return $api_result['id'];
   }
 
@@ -342,6 +353,16 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     // create mandate
     $mandate = civicrm_api3('SepaMandate', 'createfull', $mandate_params);
+
+    if (!empty($record['engagement_campaign'])) {
+      // set engagement campaign
+      $contribution_id = reset($mandate['values'])['id'];
+      Activity::update(FALSE)
+        ->addValue('engagement_campaign.engagement_campaign', $this->getEngagementCampaignId($record))
+        ->addWhere('activity_type_id:name', '=', 'Contribution')
+        ->addWhere('source_record_id', '=', $contribution_id)
+        ->execute();
+    }
   }
 
   /**
@@ -387,10 +408,6 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       // GP-1790: Force debit to start with $new_start_date
       $defer_payment_start = FALSE;
     }
-
-
-
-
 
     $contract_data = [
       'action'                                  => $action,
@@ -440,6 +457,13 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     if (!empty($result['change_activity_id']) && !empty($this->getActivityId($record))) {
       $this->setParentActivity($result['change_activity_id'], $this->getActivityId($record));
     }
+    if (!empty($record['engagement_campaign']) && !empty($result['change_activity_id'])) {
+      // set engagement campaign
+      Activity::update(FALSE)
+        ->addValue('engagement_campaign.engagement_campaign', $this->getEngagementCampaignId($record))
+        ->addWhere('id', '=', $result['change_activity_id'])
+        ->execute();
+    }
     $this->_contract_changes_produced = TRUE;
     $this->logger->logDebug("Update for membership [{$contract_id}] scheduled.", $record);
 
@@ -463,6 +487,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       $this->_contract_changes_produced = TRUE;
       $this->logger->logDebug("Contract (membership) [{$contract_id}] scheduled for termination.", $record);
     }
+
   }
 
   /**
@@ -1218,6 +1243,22 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
         ->addWhere('id', '=', $this->getContactID($record))
         ->execute();
     }
+  }
+
+  private function getEngagementCampaignId($record): ?int {
+    if (!empty($record['engagement_campaign'])) {
+      $campaign = Campaign::get(FALSE)
+        ->addSelect('id')
+        ->addWhere('parent_id.name', '=', 'ENGAGE')
+        ->addWhere('name', '=', $record['engagement_campaign'])
+        ->execute()
+        ->first();
+      if (!empty($campaign)) {
+        return $campaign['id'];
+      }
+    }
+    $this->logger->logError("Unknown engagement campaign name '{$record['engagement_campaign']}'", $record);
+    return NULL;
   }
 
 }
