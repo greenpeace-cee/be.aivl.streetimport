@@ -5,6 +5,8 @@
 | Author: P. Figel (pfigel@greenpeace.org)                     |
 +--------------------------------------------------------------*/
 
+use Civi\Api4;
+
 /**
  * Greenpeace Poland Bank Authorization Response Import
  *
@@ -142,52 +144,77 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
   }
 
   /**
-   * Sets the start_date
+   * Re-schedules the resumption of a contract after a successful bank authorization
    *
-   * @param $membershipId
-   * @param $contactId
+   * @param $membership_id
+   * @param $contact_id
    *
    * @throws \CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException
    */
-  private function resumeContract($membershipId, $contactId) {
-    $config = CRM_Streetimport_Config::singleton();
-    $activityParams = [
-      'activity_type_id' => 'Contract_Resumed',
-      'is_current_revision' => 1,
-      'is_deleted' => 0,
-      'source_record_id' => $membershipId,
-      'target_contact_id' => $contactId,
-      'status_id' => 'scheduled',
-    ];
-
+   private function resumeContract($membership_id, $contact_id) {
     try {
-      $activities = civicrm_api3('Activity', 'Get', $activityParams);
-      if ($activities['count'] > 1) {
+      // Find the previously scheduled Contract_Resumed activity
+      $activity_query_result = Api4\Activity::get(FALSE)
+        ->addSelect('activity_type_id', 'contract_updates.ch_payment_changes')
+        ->addWhere('activity_type_id:name', '=', 'Contract_Resumed')
+        ->addWhere('is_current_revision',   '=', TRUE)
+        ->addWhere('is_deleted',            '=', FALSE)
+        ->addWhere('source_record_id',      '=', $membership_id)
+        ->addWhere('status_id:name',        '=', 'Scheduled')
+        ->addWhere('target_contact_id',     '=', $contact_id)
+        ->execute();
+
+      $activity_count = $activity_query_result->count();
+
+      if ($activity_count > 1) {
         // TODO: check if we need to handle this somehow. I think it's theoretically possible to schedule multiple pauses?
-        throw new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException(
-          "Found multiple resume activities for membership {$membershipId}"
-        );
+        $err_message = "Found multiple resume activities for membership $membership_id";
+        throw new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException($err_message);
       }
 
-      if ($activities['count'] < 1) {
-        throw new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException(
-          "Found no resume activity for membership {$membershipId}"
-        );
+      if ($activity_count < 1) {
+        $err_message = "Found no resume activity for membership $membership_id";
+        throw new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException($err_message);
       }
 
-      $activity = reset($activities['values']);
+      $resume_activity = $activity_query_result->first();
 
-      $updateParams = [
-        'id' => $activity['id'],
-        'activity_date_time' => CRM_Contract_Utils::getDefaultContractChangeDate(),
-        'status_id' => 'scheduled',
-      ];
-      civicrm_api3('Activity', 'Create', $updateParams);
-    }
-    catch (CiviCRM_API3_Exception $e) {
-      throw new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException(
-        'API error: ' . $e->getMessage()
+      // Now that the bank authorization was successful, the actual resume date can be calculated
+      $resume_date = CRM_Contract_Utils::getDefaultContractChangeDate();
+
+      // ... and based on the resume date, the next possible debit date can be calculated
+      // to determine the new cycle day for the contract
+      $first_debit_date = new DateTimeImmutable(
+        civicrm_api3('Contract', 'start_date', [
+          'min_date'        => $resume_date,
+          'payment_adapter' => 'sepa_mandate',
+        ])['values'][0]
       );
+
+      // Retrieve and update the previously scheduled payment changes
+      $scheduled_changes = is_null($resume_activity['contract_updates.ch_payment_changes'])
+        ? [
+          'activity_type_id' => $resume_activity['activity_type_id'],
+          'adapter'          => 'sepa_mandate',
+          'parameters'       => [],
+        ]
+        : json_decode($resume_activity['contract_updates.ch_payment_changes'], TRUE);
+
+      $new_cycle_day = $first_debit_date->format('j');
+      $scheduled_changes['parameters']['cycle_day'] = $new_cycle_day;
+
+      // Update and re-schedule the existing Contract_Resumed activity
+      Api4\Activity::update(FALSE)
+        ->addValue('activity_date_time',                  $resume_date)
+        ->addValue('contract_updates.ch_cycle_day',       $new_cycle_day)
+        ->addValue('contract_updates.ch_payment_changes', json_encode($scheduled_changes))
+        ->addValue('status_id:name',                      'Scheduled')
+        ->addWhere('id', '=', $resume_activity['id'])
+        ->execute();
+
+    } catch (CiviCRM_API3_Exception $e) {
+      $err_message = 'API error: ' . $e->getMessage();
+      throw new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandlerException($err_message);
     }
   }
 
@@ -221,13 +248,18 @@ class CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler extends CRM_Streeti
 
   private function reviveContract($membershipId) {
     $config = CRM_Streetimport_Config::singleton();
-    $reviveModification = array(
-      'action' => 'revive',
-      'id' => $membershipId,
-      'medium_id' => $this->getMediumID(),
-      'source_contact_id' => (int) $config->getFundraiserContactID(),
+
+    $next_debit_date = new DateTimeImmutable(
+      civicrm_api3('Contract', 'start_date', [ 'payment_adapter' => 'sepa_mandate' ])['values'][0]
     );
-    civicrm_api3('Contract', 'Modify', $reviveModification);
+
+    civicrm_api3('Contract', 'Modify', [
+      'action'            => 'revive',
+      'id'                => $membershipId,
+      'cycle_day'         => $next_debit_date->format('j'),
+      'medium_id'         => $this->getMediumID(),
+      'source_contact_id' => (int) $config->getFundraiserContactID(),
+    ]);
   }
 
   private function cancelContract($membershipId, $responseCode) {
