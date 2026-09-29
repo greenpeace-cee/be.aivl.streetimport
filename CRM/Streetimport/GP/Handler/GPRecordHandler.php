@@ -356,7 +356,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     if (!empty($record['engagement_campaign'])) {
       // set engagement campaign
-      $contribution_id = reset($mandate['values'])['id'];
+      $contribution_id = reset($mandate['values'])['entity_id'];
       Activity::update(FALSE)
         ->addValue('engagement_campaign.engagement_campaign', $this->getEngagementCampaignId($record))
         ->addWhere('activity_type_id:name', '=', 'Contribution')
