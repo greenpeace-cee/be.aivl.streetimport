@@ -52,6 +52,7 @@ class CRM_Streetimport_GPPL_Config extends CRM_Streetimport_Config {
   public function getHandlers($logger) {
     return array(
       new CRM_Streetimport_GPPL_Handler_BankAuthorizationHandler($logger),
+      new CRM_Streetimport_GPPL_Handler_TMResponseHandler($logger),
     );
   }
 
@@ -111,6 +112,36 @@ class CRM_Streetimport_GPPL_Config extends CRM_Streetimport_Config {
    */
   public function stopProcessingIfNoHanderFound() {
     return TRUE;
+  }
+
+  /**
+   * Look up custom fields and return full field data
+   */
+  public function getGPCustomField($field_name, $group_id = NULL) {
+    if (!isset($this->gp_custom_fields[$field_name]) || !is_array($this->gp_custom_fields[$field_name])) {
+      // load custom field data
+      try {
+        $params = [ 'name' => $field_name ];
+        if (!is_null($group_id)) {
+          $params['custom_group_id'] = $group_id;
+        }
+        $this->gp_custom_fields[$field_name] = civicrm_api3('CustomField', 'getsingle', $params);
+      } catch (Exception $e) {
+        $this->gp_custom_fields[$field_name] = array(
+          'is_error' => 1,
+          'error_msg' => $e->getMessage());
+      }
+    }
+
+    return $this->gp_custom_fields[$field_name];
+  }
+
+  /**
+   * Look up custom fields and return full field data
+   */
+  public function getGPCustomFieldKey($field_name, $group_id = NULL) {
+    $custom_field = $this->getGPCustomField($field_name, $group_id);
+    return "custom_{$custom_field['id']}";
   }
 
 }

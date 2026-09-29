@@ -12,6 +12,8 @@ abstract class CRM_Streetimport_RecordHandler {
 
   /**
    * stores the result/logging object
+   *
+   * @var CRM_Streetimport_ImportResult
    */
   protected $logger = NULL;
 

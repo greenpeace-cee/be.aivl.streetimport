@@ -72,7 +72,7 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
    * aka legacy mode
    */
   protected function isCompatibilityMode($record) {
-    return substr($this->file_name_data['code'], 0, 1) != 'C';
+    return strtoupper(substr($this->file_name_data['code'], 0, 1)) != 'C';
   }
 
   /**
@@ -242,7 +242,7 @@ abstract class CRM_Streetimport_GP_Handler_TMRecordHandler extends CRM_Streetimp
    * @return NULL if not matched, data else
    */
   protected function parseTmFile($sourceID) {
-    if (preg_match(self::$TM_PATTERN, $sourceID, $matches)) {
+    if (preg_match(static::$TM_PATTERN, $sourceID, $matches)) {
       return $matches;
     } else {
       return NULL;
