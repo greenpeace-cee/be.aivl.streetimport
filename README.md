@@ -1,4 +1,7 @@
 # CiviCRM extension be.aivl.streetimport
+
+[![Run unit tests](https://github.com/greenpeace-cee/be.aivl.streetimport/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/greenpeace-cee/be.aivl.streetimport/actions/workflows/unit-tests.yml)
+
 Native CiviCRM extension for Amnesty International Flanders (AIVL) to import street recruitment and welcome call csvfiles into CiviCRM.
 The extension was created initially by Erik Hommel (CiviCooP) and Björn Endres (Systopia) for AIVL.
 

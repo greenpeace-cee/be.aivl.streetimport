@@ -1,0 +1,7 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;activity_id;TDMitarbeiter
+{id:strict};11;Info gewünscht;2026-09-01 14:30:00;{call:strict};4711
+{id:action};11;Info gewünscht;2026-09-01 14:35:00;{call:action};
+{id:fallback};93;nicht angegriffen;2026-09-01 14:40:00;;
+{id:noparent};11;Info gewünscht;2026-09-01 14:45:00;;
+999999999;11;Info gewünscht;2026-09-01 14:50:00;;
+{id:identity};94;mögliche Identitätsänderung;2026-09-01 14:55:00;;

@@ -20,14 +20,4 @@
     <adminGroup>CiviContribute</adminGroup>
     <icon>admin/import_export_map.png</icon>
   </item>
-  <item>
-    <path>civicrm/streetimport/update</path>
-    <page_callback>CRM_Streetimport_Update_Page_Update</page_callback>
-    <access_arguments>access CiviCRM</access_arguments>
-  </item>
-  <item>
-    <path>civicrm/streetimport/update/run</path>
-    <page_callback>CRM_Streetimport_Update_Controller</page_callback>
-    <access_arguments>access CiviCRM</access_arguments>
-  </item>
 </menu>

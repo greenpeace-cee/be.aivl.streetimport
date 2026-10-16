@@ -415,8 +415,8 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'date'                                    => $start_date->format('YmdHis'),
       'id'                                      => $contract_id,
       'medium_id'                               => $this->getMediumID($record),
-      'membership_payment.cycle_day'            => $cycle_day,
-      'membership_payment.defer_payment_start'  => $defer_payment_start,
+      'membership_payment.cycle_day'            => $cycle_day ?? NULL,
+      'membership_payment.defer_payment_start'  => (int) $defer_payment_start,
       'membership_payment.membership_annual'    => $annual_amount,
       'membership_payment.membership_frequency' => $frequency,
     ];
@@ -453,15 +453,16 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
     $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_data), $record);
     $result = civicrm_api3('Contract', 'modify', $contract_data);
+    $change_activity_id = reset($result['values'])['change_activity_id'] ?? NULL;
     // set parent activity of update/revive activity (if provided)
-    if (!empty($result['change_activity_id']) && !empty($this->getActivityId($record))) {
-      $this->setParentActivity($result['change_activity_id'], $this->getActivityId($record));
+    if (!empty($change_activity_id) && !empty($this->getActivityId($record))) {
+      $this->setParentActivity($change_activity_id, $this->getActivityId($record));
     }
-    if (!empty($record['engagement_campaign']) && !empty($result['change_activity_id'])) {
+    if (!empty($record['engagement_campaign']) && !empty($change_activity_id)) {
       // set engagement campaign
       Activity::update(FALSE)
         ->addValue('engagement_campaign.engagement_campaign', $this->getEngagementCampaignId($record))
-        ->addWhere('id', '=', $result['change_activity_id'])
+        ->addWhere('id', '=', $change_activity_id)
         ->execute();
     }
     $this->_contract_changes_produced = TRUE;
@@ -480,9 +481,10 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
       $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_modification), $record);
       $cancelResult = civicrm_api3('Contract', 'modify', $contract_modification);
+      $change_activity_id = reset($cancelResult['values'])['change_activity_id'] ?? NULL;
       // set parent activity of cancel activity (if provided)
-      if (!empty($cancelResult['change_activity_id']) && !empty($this->getActivityId($record))) {
-        $this->setParentActivity($cancelResult['change_activity_id'], $this->getActivityId($record));
+      if (!empty($change_activity_id) && !empty($this->getActivityId($record))) {
+        $this->setParentActivity($change_activity_id, $this->getActivityId($record));
       }
       $this->_contract_changes_produced = TRUE;
       $this->logger->logDebug("Contract (membership) [{$contract_id}] scheduled for termination.", $record);
@@ -543,10 +545,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
 
       $this->logger->logDebug("Calling Contract.modify: " . json_encode($contract_modification), $record);
       $result = civicrm_api3('Contract', 'modify', $contract_modification);
+      $change_activity_id = reset($result['values'])['change_activity_id'] ?? NULL;
 
       // set parent activity of cancel activity (if provided)
-      if (!empty($result['change_activity_id']) && !empty($this->getActivityId($record))) {
-        $this->setParentActivity($result['change_activity_id'], $this->getActivityId($record));
+      if (!empty($change_activity_id) && !empty($this->getActivityId($record))) {
+        $this->setParentActivity($change_activity_id, $this->getActivityId($record));
       }
 
       $this->_contract_changes_produced = TRUE;
@@ -785,6 +788,11 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
         $media_resolved[] = CRM_Core_PseudoConstant::getKey('CRM_Activity_BAO_Activity', 'medium_id', $medium);
       }
     }
+    foreach (array_merge($activity_types_resolved, $exclude_activity_types_resolved, $media_resolved) as $resolved) {
+      if (empty($resolved)) {
+        throw new CRM_Core_Exception('Unknown activity type or medium in parent activity filters: ' . json_encode($filters));
+      }
+    }
     $params = [
       1 => [$contact_id, 'Integer'],
       2 => [$campaign_id, 'Integer'],
@@ -794,17 +802,17 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
     if (count($activity_types_resolved) > 0) {
       $param_count++;
       $optionalFilters .= " AND a.activity_type_id IN (%{$param_count})";
-      $params[$param_count] = [implode(',', $activity_types_resolved), 'String'];
+      $params[$param_count] = [implode(',', $activity_types_resolved), 'CommaSeparatedIntegers'];
     }
     if (count($exclude_activity_types_resolved) > 0) {
       $param_count++;
       $optionalFilters .= " AND a.activity_type_id NOT IN (%{$param_count})";
-      $params[$param_count] = [implode(',', $exclude_activity_types_resolved), 'String'];
+      $params[$param_count] = [implode(',', $exclude_activity_types_resolved), 'CommaSeparatedIntegers'];
     }
     if (count($media_resolved) > 0) {
       $param_count++;
       $optionalFilters .= " AND a.medium_id IN (%{$param_count})";
-      $params[$param_count] = [implode(',', $media_resolved), 'String'];
+      $params[$param_count] = [implode(',', $media_resolved), 'CommaSeparatedIntegers'];
     }
     if (array_key_exists('min_date', $filters) && !is_null($filters['min_date'])) {
       $param_count++;

@@ -78,7 +78,7 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
   protected function addRTSActvity($contact_id, $category, $record) {
     $config = CRM_Streetimport_Config::singleton();
     $activity_params = [
-      'activity_type_id'    => CRM_Streetimport_GP_Config::getResponseActivityType(),
+      'activity_type_id'    => $config->getResponseActivityType(),
       'target_id'           => $contact_id,
       'subject'             => $this->getRTSSubject($category),
       'activity_date_time'  => $this->getDate($record),
@@ -116,7 +116,7 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
    * @throws \CiviCRM_API3_Exception
    */
   protected function findLastRTS($contact_id, $record, $search_frame = NULL, $category = NULL) {
-    $activity_type_id = CRM_Streetimport_GP_Config::getResponseActivityType();
+    $activity_type_id = CRM_Streetimport_Config::singleton()->getResponseActivityType();
 
     $SUBJECT_CLAUSE = 'AND (TRUE OR activity.subject = %2)'; // probably need to have the %2 token..
     $subject = '';
@@ -384,8 +384,8 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
       'Ort'      => 'city',
     ];
     foreach ($mapReturnToOriginal as $returnField => $originalField) {
-      $returnValue = $this->normalizeAddressField($returnAddress[$returnField]);
-      $originalValue = $this->normalizeAddressField($originalAddress[$originalField]);
+      $returnValue = $this->normalizeAddressField($returnAddress[$returnField] ?? '');
+      $originalValue = $this->normalizeAddressField($originalAddress[$originalField] ?? '');
       if ($returnValue != $originalValue) {
         return TRUE;
       }
@@ -420,7 +420,7 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
       $parent_activity = $this->findLastRTS($contact_id, $record);
     }
     if ($this->isReturnWithFullAddress($record)) {
-      if ($this->addressChanged($primary_address, $record)) {
+      if (!empty($primary_address) && $this->addressChanged($primary_address, $record)) {
         $this->logger->logDebug("Skipping RTS increase due to return address diff for contact [{$contact_id}].", $record);
         $increaseCounter = FALSE;
       }
