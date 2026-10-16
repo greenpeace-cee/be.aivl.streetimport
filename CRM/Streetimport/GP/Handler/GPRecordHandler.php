@@ -415,8 +415,8 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'date'                                    => $start_date->format('YmdHis'),
       'id'                                      => $contract_id,
       'medium_id'                               => $this->getMediumID($record),
-      'membership_payment.cycle_day'            => $cycle_day,
-      'membership_payment.defer_payment_start'  => $defer_payment_start,
+      'membership_payment.cycle_day'            => $cycle_day ?? NULL,
+      'membership_payment.defer_payment_start'  => (int) $defer_payment_start,
       'membership_payment.membership_annual'    => $annual_amount,
       'membership_payment.membership_frequency' => $frequency,
     ];

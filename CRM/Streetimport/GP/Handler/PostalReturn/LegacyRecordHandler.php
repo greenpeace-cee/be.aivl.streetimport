@@ -95,7 +95,7 @@ class CRM_Streetimport_GP_Handler_PostalReturn_LegacyRecordHandler extends CRM_S
    * @return mixed
    */
   protected function getReference($record) {
-    return trim(CRM_Utils_Array::value('scanned_code', $record));
+    return trim(CRM_Utils_Array::value('scanned_code', $record, ''));
   }
 
 }

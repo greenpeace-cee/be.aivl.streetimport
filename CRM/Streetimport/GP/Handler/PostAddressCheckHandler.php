@@ -229,7 +229,7 @@ class CRM_Streetimport_GP_Handler_PostAddressCheckHandler extends CRM_Streetimpo
     );
     $config = CRM_Streetimport_Config::singleton();
     $activity_params = [
-      'activity_type_id'    => CRM_Streetimport_GP_Config::getResponseActivityType(),
+      'activity_type_id'    => $config->getResponseActivityType(),
       'target_id'           => $contact_id,
       'subject'             => 'Adress.Check: ' . $response,
       'activity_date_time'  => date('YmdHis'),

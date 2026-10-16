@@ -132,12 +132,7 @@ class CRM_Streetimport_Config {
    * save the current settings to the DB
    */
   public function storeSettings() {
-    // the following does NOT work, since it doesn't set the group,
-    //  and we end up with different settings entries, one with one without group
-    // civicrm_api3('Setting', 'create', array('streetimporter_settings' => $this->settings));
-
-    // use the core function instead
-    CRM_Core_BAO_Setting::setItem($this->settings, 'StreetImporter', 'streetimporter_settings');
+    Civi::settings()->set('streetimporter_settings', $this->settings);
   }
 
   /**
@@ -590,7 +585,6 @@ class CRM_Streetimport_Config {
       'GP' => 'Greenpeace Austria',
       'GPPL' => 'Greenpeace Poland',
       'GPHU' => 'Greenpeace Hungary',
-      'AIVL' => 'Amnesty International Flanders',
     ];
   }
 

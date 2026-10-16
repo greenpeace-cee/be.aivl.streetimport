@@ -384,8 +384,8 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
       'Ort'      => 'city',
     ];
     foreach ($mapReturnToOriginal as $returnField => $originalField) {
-      $returnValue = $this->normalizeAddressField($returnAddress[$returnField]);
-      $originalValue = $this->normalizeAddressField($originalAddress[$originalField]);
+      $returnValue = $this->normalizeAddressField($returnAddress[$returnField] ?? '');
+      $originalValue = $this->normalizeAddressField($originalAddress[$originalField] ?? '');
       if ($returnValue != $originalValue) {
         return TRUE;
       }
