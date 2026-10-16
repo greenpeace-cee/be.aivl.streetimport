@@ -1,0 +1,9 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;strasse;hausnummer;hausnummernzusatz;PLZ;Ort;Land;AdresseGeprueft
+{id:noaddress};11;Info gewünscht;2026-09-01 14:30:00;Neubaugasse;12;/3;1070;Wien;AT;
+{id:moved};11;Info gewünscht;2026-09-01 14:30:00;Unter den Linden;5;;10117;Berlin;DE;
+{id:incomplete};11;Info gewünscht;2026-09-01 14:30:00;;;;;Graz;;
+{id:partial};11;Info gewünscht;2026-09-01 14:30:00;Ring;1;;1010;;;
+{id:identical};11;Info gewünscht;2026-09-01 14:30:00;Hauptstraße;1;;1010;Wien;AT;
+{id:countryonly};11;Info gewünscht;2026-09-01 14:30:00;;;;;;DE;
+{id:verified};11;Info gewünscht;2026-09-01 14:30:00;;;;;;;X
+{id:invalidcountry};11;Info gewünscht;2026-09-01 14:30:00;;;;;;XX;

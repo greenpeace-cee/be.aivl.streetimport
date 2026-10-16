@@ -204,7 +204,9 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
             return $this->logger->logError("Format violation, the record type requires a contract_id.", $record);
           } else {
             $contract_id = $this->createContract($contact_id, $record);
-            $this->setContractActivityParent($contract_id, $parent_id);
+            if (!empty($contract_id)) {
+              $this->setContractActivityParent($contract_id, $parent_id);
+            }
           }
         } else {
           // load the contract
@@ -1283,7 +1285,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandler extends CRM_Streetimp
           return;
         }
         $status_id = $config->getActivityScheduledStatusId();
-        if ($data['order_status'] ?? NULL == 'Completed') {
+        if (($data['order_status'] ?? NULL) == 'Completed') {
           $status_id = $config->getActivityCompleteStatusId();
         }
         $this->createWebshopActivity($contact_id, $record, [
