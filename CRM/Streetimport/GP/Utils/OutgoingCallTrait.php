@@ -43,7 +43,7 @@ trait CRM_Streetimport_GP_Utils_OutgoingCallTrait {
       'reset_rts' => 'Address verified?',
       'groups' => function($data) {
         $groups = [];
-        foreach ($data['groups'] as $groupName) {
+        foreach ($data['groups'] ?? [] as $groupName) {
           if (empty($groupName)) {
             continue;
           }

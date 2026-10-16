@@ -1,0 +1,15 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Bemerkung1;Bemerkung2;BemerkungFreitext
+{id:nopost};11;Info gewünscht;2026-09-01 14:30:00;erhält keine Post;;
+{id:nophone};11;Info gewünscht;2026-09-01 14:30:00;kein Telefonkontakt erwünscht;;
+{id:nocalendar};11;Info gewünscht;2026-09-01 14:30:00;keine Kalender senden;;
+{id:onemailing};11;Info gewünscht;2026-09-01 14:30:00;nur Vereinsmagazin mit 1 Mailing;;
+{id:actonly};11;Info gewünscht;2026-09-01 14:30:00;nur Vereinsmagazin, sonst keine Post;;
+{id:noincentives};11;Info gewünscht;2026-09-01 14:30:00;möchte keine Incentives;möchte max 4 Postsendungen;
+{id:nomail};11;Info gewünscht;2026-09-01 14:30:00;möchte keine Postsendungen;Postsendung nur bei Notfällen;
+{id:newsletterin};11;Info gewünscht;2026-09-01 14:30:00;Newsletter opt-in;;
+{id:newsletterout};11;Info gewünscht;2026-09-01 14:30:00;Newsletter opt-out;;
+{id:legacyoptin};11;Info gewünscht;2026-09-01 14:30:00;Legate Opt-in;Legate Info nein;
+{id:legacyinfo};11;Info gewünscht;2026-09-01 14:30:00;Legate Info ja;;
+{id:task};11;Info gewünscht;2026-09-01 14:30:00;erhält Post doppelt;;Bitte Adresse prüfen
+{id:nothing};11;Info gewünscht;2026-09-01 14:30:00;hat kein Konto;;
+{id:unknown};11;Info gewünscht;2026-09-01 14:30:00;gibt es nicht;;

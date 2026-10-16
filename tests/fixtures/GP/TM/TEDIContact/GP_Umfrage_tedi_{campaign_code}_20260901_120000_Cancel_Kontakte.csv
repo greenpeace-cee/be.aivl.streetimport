@@ -1,0 +1,7 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Vertragsnummer;Stornogrund;IBAN;BuchungsBetrag;Einzugsstart
+{id:storno};30;Storno ZS;2026-09-01 14:30:00;{contract:storno};MS02;;;
+{id:stornodefault};31;Storno ZSO;2026-09-01 14:30:00;{contract:stornodefault};;;;
+{id:stornonocontract};32;Storno SMS;2026-09-01 14:30:00;;;;;
+{id:deceased};40;verstorben;2026-09-01 14:30:00;;;;;
+{id:ooff};3;Einmalspende;2026-09-01 14:30:00;;;DE89370400440532013000;50,00;
+{id:ooffincomplete};3;Einmalspende;2026-09-01 14:30:00;;;;;

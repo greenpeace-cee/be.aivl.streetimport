@@ -1,0 +1,6 @@
+id;Status;TelID;TelLand;TelVorwahl;TelNummer;Kontaktdatum;activity_id
+{id:notcalled};0;{phone:notcalled};43;1;1111111;2026-09-01 14:00:00;
+{id:called};1;{phone:called};43;1;2222222;2026-09-01 14:30:00;{call:called}
+{id:changed};2;{phone:changed};43;664;3333333;2026-09-01 15:00:00;
+{id:deleted};3;{phone:deleted};43;1;4444444;2026-09-01 15:30:00;
+{id:new};4;;43;676;5555555;2026-09-01 16:00:00;
