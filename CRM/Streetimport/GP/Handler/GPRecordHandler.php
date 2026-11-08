@@ -343,7 +343,7 @@ abstract class CRM_Streetimport_GP_Handler_GPRecordHandler extends CRM_Streetimp
       'currency'            => 'EUR',
       'receive_date'        => $mandate_start_date,
       'campaign_id'         => $this->getCampaignID($record),
-      'financial_type_id'   => 1, // Donation
+      'financial_type_id'   => CRM_Streetimport_Utils::getFinancialTypeID('Donation'),
       );
 
     // add up bank account (see GP-1701)

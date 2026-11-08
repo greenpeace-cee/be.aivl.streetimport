@@ -634,7 +634,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandlerTest extends CRM_Stree
     $case = $this->getLegacyCase('acquired');
     $this->assertEquals('legacy_interested', $case['status_id:name']);
     $this->assertEquals('TM Akquise', $case['subject']);
-    $this->assertEquals('2026-09-01', $case['start_date']);
+    // start_date is a datetime in newer core versions
+    $this->assertEquals('2026-09-01', substr($case['start_date'], 0, 10));
     $openCase = $this->getCaseActivities($case['id'], 'Open Case');
     $this->assertCount(1, $openCase);
     // channel "TM_Akquise"

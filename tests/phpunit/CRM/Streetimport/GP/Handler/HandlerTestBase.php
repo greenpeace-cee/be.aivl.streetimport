@@ -240,10 +240,17 @@ abstract class CRM_Streetimport_GP_Handler_HandlerTestBase extends TestCase impl
       ],
     ]);
 
-    $this->campaignId = civicrm_api3('Campaign', 'create', [
+    $campaignId = civicrm_api3('Campaign', 'create', [
       'title' => 'Test Mailing',
       'name'  => 'test_mailing',
     ])['id'];
+    // TM file names only allow 4-digit campaign codes, but core's test DB
+    // starts IDs at 1000+ per table
+    $this->campaignId = 4711;
+    CRM_Core_DAO::executeQuery('UPDATE civicrm_campaign SET id = %1 WHERE id = %2', [
+      1 => [$this->campaignId, 'Integer'],
+      2 => [$campaignId, 'Integer'],
+    ]);
 
     $this->importDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('streetimport-test-', TRUE);
     foreach ($this->getImportFolders() as $folder) {
@@ -373,7 +380,7 @@ abstract class CRM_Streetimport_GP_Handler_HandlerTestBase extends TestCase impl
     if (!is_null($address)) {
       civicrm_api3('Address', 'create', $address + [
         'contact_id'       => $contactId,
-        'location_type_id' => 1,
+        'location_type_id' => 'Home',
         'is_primary'       => 1,
         'street_address'   => 'Hauptstraße 1',
         'postal_code'      => '1010',
@@ -408,7 +415,7 @@ abstract class CRM_Streetimport_GP_Handler_HandlerTestBase extends TestCase impl
     $phoneId = civicrm_api3('Phone', 'create', [
       'contact_id'       => $this->contacts[$alias],
       'phone'            => $phone,
-      'location_type_id' => 1,
+      'location_type_id' => 'Home',
       'phone_type_id'    => 'Phone',
     ])['id'];
     $this->placeholders["phone:{$alias}"] = $phoneId;
