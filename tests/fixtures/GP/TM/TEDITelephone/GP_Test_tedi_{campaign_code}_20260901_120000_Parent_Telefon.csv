@@ -1,3 +1,5 @@
 id;Status;TelID;TelLand;TelVorwahl;TelNummer;Kontaktdatum
 {id:recent};1;{phone:recent};43;1;1234567;2026-09-01 14:30:00
 {id:old};1;{phone:old};43;1;7654321;2026-09-01 14:30:00
+{id:sameday};1;{phone:sameday};43;1;1111111;2026-09-01 14:30:00
+{id:othercampaign};1;{phone:othercampaign};43;1;2222222;2026-09-01 14:30:00

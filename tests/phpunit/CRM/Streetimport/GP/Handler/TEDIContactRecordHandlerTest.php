@@ -559,6 +559,42 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandlerTest extends CRM_Stree
   }
 
   /**
+   * The engagement campaign is set on contract and contribution activities
+   */
+  public function testEngagementCampaign() {
+    $engage = civicrm_api3('Campaign', 'create', ['title' => 'Engage', 'name' => 'ENGAGE'])['id'];
+    $engagementId = civicrm_api3('Campaign', 'create', ['title' => 'Test', 'name' => 'test_engagement', 'parent_id' => $engage])['id'];
+    foreach (['signed', 'unknown', 'upgraded', 'ooff'] as $alias) {
+      $this->createTMContact($alias);
+    }
+    $upgraded = $this->createExistingContract('upgraded');
+
+    $this->importFixture('GP/TM/TEDIContact/GP_Umwandlung_tedi_{campaign_code}_20260901_120000_Engagement_Kontakte.csv');
+    $this->importFixture('GP/TM/TEDIContact/GP_Upgrade_tedi_{campaign_code}_20260901_120000_Engagement_Kontakte.csv');
+    $this->importFixture('GP/TM/TEDIContact/GP_Umfrage_tedi_{campaign_code}_20260901_120000_Engagement_Kontakte.csv');
+
+    $this->assertEquals(["Unknown engagement campaign name 'no_such_campaign'"], $this->getImportErrors());
+    $signed = $this->getContractActivity($this->getSingleContract('signed')['id'], 'Contract_Signed');
+    $this->assertEquals($engagementId, $signed['engagement_campaign.engagement_campaign']);
+    $unknown = $this->getContractActivity($this->getSingleContract('unknown')['id'], 'Contract_Signed');
+    $this->assertEmpty($unknown['engagement_campaign.engagement_campaign']);
+    $this->assertEquals($engagementId, $this->getContractActivity($upgraded, 'Contract_Updated')['engagement_campaign.engagement_campaign']);
+    // the scheduled end gets the call as parent too
+    $this->assertEquals(
+      $this->placeholders['call:upgraded'],
+      $this->getContractActivity($upgraded, 'Contract_Cancelled')[self::PARENT_ACTIVITY_FIELD]
+    );
+    $contribution = \Civi\Api4\Activity::get(FALSE)
+      ->addSelect('engagement_campaign.engagement_campaign')
+      ->addJoin('ActivityContact AS ac', 'INNER', ['ac.activity_id', '=', 'id'])
+      ->addWhere('ac.contact_id', '=', $this->contacts['ooff'])
+      ->addWhere('activity_type_id:name', '=', 'Contribution')
+      ->execute()
+      ->single();
+    $this->assertEquals($engagementId, $contribution['engagement_campaign.engagement_campaign']);
+  }
+
+  /**
    * Middle donor projects: "MDUP" behaves like an upgrade without required
    * contract, "MDUM" like a conversion
    */
@@ -855,7 +891,7 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandlerTest extends CRM_Stree
    */
   private function getContractActivity($contractId, $activityType) {
     return \Civi\Api4\Activity::get(FALSE)
-      ->addSelect('id', self::PARENT_ACTIVITY_FIELD)
+      ->addSelect('id', self::PARENT_ACTIVITY_FIELD, 'engagement_campaign.engagement_campaign')
       ->addWhere('source_record_id', '=', $contractId)
       ->addWhere('activity_type_id:name', '=', $activityType)
       ->addOrderBy('id', 'DESC')
@@ -957,7 +993,8 @@ class CRM_Streetimport_GP_Handler_TEDIContactRecordHandlerTest extends CRM_Stree
       ->addSelect('group_id', 'status')
       ->addWhere('contact_id', '=', $this->contacts[$alias])
       ->execute()
-      ->column('status', 'group_id');
+      ->indexBy('group_id')
+      ->column('status');
     ksort($statuses);
     return $statuses;
   }

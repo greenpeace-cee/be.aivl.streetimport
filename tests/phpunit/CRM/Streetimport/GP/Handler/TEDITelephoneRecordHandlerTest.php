@@ -79,13 +79,25 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandlerTest extends CRM_Str
     $this->createOutgoingCallActivity($recent, '2026-07-01 10:00:00');
     $recentCallId = $this->createOutgoingCallActivity($recent, '2026-08-01 10:00:00');
     $this->createOutgoingCallActivity($old, '2026-05-01 10:00:00');
+    // later on the same day still counts, other campaigns don't
+    $sameDay = $this->createContact('sameday');
+    $this->createPhone('sameday', '+43 1 1111111');
+    $sameDayCallId = $this->createOutgoingCallActivity($sameDay, '2026-09-01 18:00:00');
+    $otherCampaign = $this->createContact('othercampaign');
+    $this->createPhone('othercampaign', '+43 1 2222222');
+    $otherCallId = $this->createOutgoingCallActivity($otherCampaign, '2026-08-01 10:00:00');
+    civicrm_api3('Activity', 'create', ['id' => $otherCallId, 'campaign_id' => civicrm_api3('Campaign', 'create', ['title' => 'Other'])['id']]);
 
     $result = $this->importFixture('GP/TM/TEDITelephone/GP_Test_tedi_{campaign_code}_20260901_120000_Parent_Telefon.csv');
 
-    $this->assertEquals('2 of 2 records imported.', $result['values']);
+    $this->assertEquals('4 of 4 records imported.', $result['values']);
     $activity = $this->assertSingleActivity($recent, 'contact_called', 'Contact Called');
     $this->assertEquals($recentCallId, $activity[self::PARENT_ACTIVITY_FIELD]);
     $activity = $this->assertSingleActivity($old, 'contact_called', 'Contact Called');
+    $this->assertEmpty($activity[self::PARENT_ACTIVITY_FIELD]);
+    $activity = $this->assertSingleActivity($sameDay, 'contact_called', 'Contact Called');
+    $this->assertEquals($sameDayCallId, $activity[self::PARENT_ACTIVITY_FIELD]);
+    $activity = $this->assertSingleActivity($otherCampaign, 'contact_called', 'Contact Called');
     $this->assertEmpty($activity[self::PARENT_ACTIVITY_FIELD]);
   }
 

@@ -67,7 +67,7 @@ abstract class CRM_Streetimport_GP_Handler_HandlerTestBase extends TestCase impl
         'greenpeace_contribute',
       ])
       ->installMe(__DIR__)
-      ->callback([self::class, 'createDataStructures'], 'streetimport-gp-data-structures-v6')
+      ->callback([self::class, 'createDataStructures'], 'streetimport-gp-data-structures-v7')
       ->apply();
   }
 
@@ -97,6 +97,9 @@ abstract class CRM_Streetimport_GP_Handler_HandlerTestBase extends TestCase impl
     ]);
     self::createCustomGroup('activity_hierarchy', 'Activity', [
       ['name' => 'parent_activity_id', 'data_type' => 'Int', 'html_type' => 'Text'],
+    ]);
+    self::createCustomGroup('engagement_campaign', 'Activity', [
+      ['name' => 'engagement_campaign', 'data_type' => 'Int', 'html_type' => 'Text'],
     ]);
     self::createCustomGroup('additional_demographics', 'Contact', [
       ['name' => 'birth_year', 'data_type' => 'Int', 'html_type' => 'Text'],
