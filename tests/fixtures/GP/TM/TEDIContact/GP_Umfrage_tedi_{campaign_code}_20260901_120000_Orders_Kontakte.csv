@@ -1,0 +1,6 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Bemerkung1;JSON1
+{id:shirt};11;Info gewünscht;2026-09-01 14:30:00;M/XL/Klimaschutz;
+{id:legacyshirt};11;Info gewünscht;2026-09-01 14:30:00;W/S;
+{id:order};11;Info gewünscht;2026-09-01 14:30:00;;"{""action"": ""webshop_order"", ""order_type"": ""Kalender"", ""order_count"": 2, ""order_status"": ""Completed""}"
+{id:freeorder};11;Info gewünscht;2026-09-01 14:30:00;;"{""action"": ""webshop_order"", ""order_type"": ""Kalender"", ""free_order"": true}"
+{id:scheduledorder};11;Info gewünscht;2026-09-01 14:30:00;;"{""action"": ""webshop_order"", ""order_type"": ""Kalender"", ""order_status"": ""Scheduled""}"

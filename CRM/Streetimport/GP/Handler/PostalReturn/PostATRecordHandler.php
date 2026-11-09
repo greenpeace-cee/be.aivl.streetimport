@@ -116,7 +116,7 @@ class CRM_Streetimport_GP_Handler_PostalReturn_PostATRecordHandler extends CRM_S
    * @return mixed
    */
   protected function getReference($record) {
-    return trim(CRM_Utils_Array::value('Adnr', $record));
+    return trim(CRM_Utils_Array::value('Adnr', $record, ''));
   }
 
   /**

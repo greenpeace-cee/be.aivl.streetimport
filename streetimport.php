@@ -33,11 +33,11 @@ function streetimport_civicrm_install() {
   $missingExtensions = array_diff(array_keys($requiredExtensions), $installedExtensions);
   if (count($missingExtensions) == 1) {
     $missingExtensionsText = current($missingExtensions);
-    CRM_Core_Error::fatal("The Street Recruitment Import extension requires the following extension: '$missingExtensionsText' but it is not currently installed. Please install it before continuing.");
+    throw new CRM_Core_Exception("The Street Recruitment Import extension requires the following extension: '$missingExtensionsText' but it is not currently installed. Please install it before continuing.");
   }
   elseif (count($missingExtensions) > 1) {
     $missingExtensionsText = implode("', '", $missingExtensions);
-    CRM_Core_Error::fatal("The Street Recruitment Import extension requires the following extensions: '$missingExtensionsText' but they are not currently installed. Please install them before continuing.");
+    throw new CRM_Core_Exception("The Street Recruitment Import extension requires the following extensions: '$missingExtensionsText' but they are not currently installed. Please install them before continuing.");
   }
   _streetimport_civix_civicrm_install();
   CRM_Streetimport_Config::singleton('install');
@@ -68,45 +68,4 @@ function streetimport_civicrm_enable() {
     throw new Exception('Could not find an active installation of the required extension de.systopia.indentitytracker, install first and then try to install be.aivl.streetimport again');
   }
   _streetimport_civix_civicrm_enable();
-}
-
-/**
- * Implements hook_civicrm_navigationMenu
- *
- * @link http://wiki.civicrm.org/confluence/display/CRMDOC/hook_civicrm_navigationMenu
- */
-function streetimport_civicrm_navigationMenu(&$params) {
-
-  //add menu entry for Import settings to Administer>CiviContribute menu
-  $importSettingsUrl = 'civicrm/admin/setting/aivl_import_settings';
-  // now, by default we want to add it to the CiviContribute Administer menu -> find it
-  $administerMenuId = 0;
-  $administerCiviContributeMenuId = 0;
-  foreach ($params as $key => $value) {
-    if ($value['attributes']['name'] == 'Administer') {
-      $administerMenuId = $key;
-      foreach ($params[$administerMenuId]['child'] as $childKey => $childValue) {
-        if ($childValue['attributes']['name'] == 'CiviContribute') {
-          $administerCiviContributeMenuId = $childKey;
-          break;
-        }
-      }
-      break;
-    }
-  }
-  if (empty($administerMenuId)) {
-    error_log('be.aivl.streetimport: Cannot find parent menu Administer/CiviContribute for '.$importSettingsUrl);
-  } else {
-    $importSettingsMenu = array (
-      'label' => ts('AIVL Import Settings',array('domain' => 'be.aivl.streetimport')),
-      'name' => 'AIVL Import Settings',
-      'url' => $importSettingsUrl,
-      'permission' => 'administer CiviCRM',
-      'operator' => NULL,
-      'parentID' => $administerCiviContributeMenuId,
-      'navID' => CRM_Streetimport_Utils::createUniqueNavID($params[$administerMenuId]['child']),
-      'active' => 1
-    );
-    CRM_Streetimport_Utils::addNavigationMenuEntry($params[$administerMenuId]['child'][$administerCiviContributeMenuId], $importSettingsMenu);
-  }
 }

@@ -14,12 +14,12 @@
   </thead>
   <tbody>
     {foreach from=$fields item=field}
-      {if $address.$field or $old_address.$field}
+      {if !empty($address.$field) or !empty($old_address.$field)}
       <tr>
         <td>{$field}</td>
-        <td>{$address.$field}</td>
+        <td>{$address.$field|default:''}</td>
         {if $old_address}
-        <td>{$old_address.$field}</td>
+        <td>{$old_address.$field|default:''}</td>
         {/if}
       </tr>
       {/if}

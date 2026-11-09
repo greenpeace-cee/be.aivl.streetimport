@@ -1,0 +1,4 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Bemerkung1;BemerkungFreitext
+{id:statuschange};11;Info gewünscht;2026-09-01 14:30:00;Statusänderung:legacy_declined;
+{id:guide};11;Info gewünscht;2026-09-01 14:30:00;Ratgeber verschickt;Bitte anrufen
+{id:nocase};11;Info gewünscht;2026-09-01 14:30:00;;

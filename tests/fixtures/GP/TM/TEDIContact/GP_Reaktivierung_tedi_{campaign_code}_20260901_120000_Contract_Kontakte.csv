@@ -1,0 +1,3 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Vertragsnummer;IBAN;JahresBetrag;Einzugsintervall;Einzugsstart
+{id:revived};1;Zusage Förderer;2026-09-01 14:30:00;{contract:revived};DE89370400440532013000;120,00;12;
+{id:active};1;Zusage Förderer;2026-09-01 14:30:00;{contract:active};DE89370400440532013000;120,00;12;

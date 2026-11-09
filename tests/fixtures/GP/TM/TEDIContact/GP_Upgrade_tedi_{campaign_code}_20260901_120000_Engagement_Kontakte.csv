@@ -1,0 +1,2 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Vertragsnummer;IBAN;JahresBetrag;Einzugsintervall;Einzugsstart;EinzugsEndeDatum;engagement_campaign
+{id:upgraded};51;Zusage Guardian;2026-09-01 14:30:00;{contract:upgraded};DE89370400440532013000;240,00;12;;2027-12-31;test_engagement

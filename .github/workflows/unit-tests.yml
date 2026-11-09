@@ -1,0 +1,25 @@
+name: "Run unit tests"
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  tests:
+    uses: greenpeace-cee/civi-ci/.github/workflows/tests.yml@main
+    with:
+      dependencies: |
+        https://github.com/greenpeace-cee/de.systopia.identitytracker.git
+        https://github.com/greenpeace-cee/org.project60.banking.git
+        https://github.com/greenpeace-cee/org.project60.sepa.git upstream
+        https://github.com/greenpeace-cee/de.systopia.contract.git
+        https://github.com/greenpeace-cee/de.systopia.contactinactive.git
+        https://github.com/greenpeace-cee/greenpeace_contribute.git
+      install-script: |
+        cv en de.systopia.identitytracker org.project60.banking org.project60.sepa
+        cv en de.systopia.contract de.systopia.contactinactive greenpeace_contribute
+        cv en "$EXTENSION"
+      test-script: |
+        CIVICRM_UF=UnitTests phpunit9 --log-junit "$JUNIT_DIR/phpunit.xml"

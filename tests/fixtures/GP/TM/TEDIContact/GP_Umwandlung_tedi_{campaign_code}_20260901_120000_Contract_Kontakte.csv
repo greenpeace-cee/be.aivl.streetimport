@@ -1,0 +1,5 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;Vertragsnummer;IBAN;JahresBetrag;Einzugsintervall;Einzugsstart
+{id:converted};1;Zusage Förderer;2026-09-01 14:30:00;;DE89370400440532013000;120,00;12;
+{id:guardian};51;Zusage Guardian;2026-09-01 14:30:00;;DE02120300000000202051;1.200,00;1;
+{id:incomplete};1;Zusage Förderer;2026-09-01 14:30:00;;;;;
+{id:withcontract};1;Zusage Förderer;2026-09-01 14:30:00;{contract:withcontract};DE89370400440532013000;120,00;12;

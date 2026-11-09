@@ -1,0 +1,7 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;gespraech_stattgefunden;nachname;vorname;Anrede;geburtsdatum;TitelAkademisch;TitelAdel;email
+{id:updated};11;Info gewünscht;2026-09-01 14:30:00;;Doe;Updated;Frau;1980-05-17;Dr.;von;
+{id:identity};11;Info gewünscht;2026-09-01 14:30:00;;Smith;Identity;;;;;
+{id:organization};11;Info gewünscht;2026-09-01 14:30:00;;Doe;Jane;;;;;
+{id:email};11;Info gewünscht;2026-09-01 14:30:00;;;;;;;;new@example.org
+{id:unreached};91;nicht erreicht;2026-09-01 14:30:00;;Smith;Other;;;;;unreached@example.org
+{id:talked};91;nicht erreicht;2026-09-01 14:30:00;X;;;;;;;talked@example.org

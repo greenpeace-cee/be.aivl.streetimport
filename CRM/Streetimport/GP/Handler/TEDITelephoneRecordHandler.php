@@ -81,13 +81,18 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
           $this->createManualUpdateActivity($contact_id, "Phone number has changed to: " . $this->getPhoneNumber($record), $record);
           return $this->logger->logError("Phone [{$record['TelID']}] couldn't be identified.", $record);
         } else {
+          $old_numbers = \Civi\Api4\Phone::get(FALSE)
+            ->addSelect('phone')
+            ->addWhere('id', 'IN', $phone_ids)
+            ->execute()
+            ->column('phone');
           // update all identified phones (usually one)
           foreach ($phone_ids as $phone_id) {
             civicrm_api3('Phone', 'create', array(
               'id'    => $phone_id,
               'phone' => $this->getPhoneNumber($record)));
           }
-          $this->createPhoneUpdatedActivity(TM_PHONE_CHANGED, $contact_id, $record);
+          $this->createPhoneUpdatedActivity(TM_PHONE_CHANGED, $contact_id, $record, implode(', ', $old_numbers));
           $this->logger->logDebug("Phone number of contact [{$contact_id}] was changed", $record);
         }
         break;
@@ -169,7 +174,23 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
       return $phone_ids;
 
     } else {
-      return array($record['TelID']);
+      // these are CiviCRM phone IDs -> make sure the phone belongs to the contact
+      if (empty($record['TelID']) || empty($contact_id)) {
+        return array();
+      }
+      $phone = \Civi\Api4\Phone::get(FALSE)
+        ->addSelect('id', 'contact_id')
+        ->addWhere('id', '=', $record['TelID'])
+        ->execute()
+        ->first();
+      if (empty($phone)) {
+        return array();
+      }
+      if ($this->resolveContactID($phone['contact_id'], $record) != $contact_id) {
+        $this->logger->logWarning("Phone [{$record['TelID']}] doesn't belong to contact [{$contact_id}].", $record);
+        return array();
+      }
+      return array($phone['id']);
     }
   }
 
@@ -219,7 +240,7 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
   /**
    * Create a "Contact Called" activity
    */
-  public function createPhoneUpdatedActivity($type, $contact_id, $record) {
+  public function createPhoneUpdatedActivity($type, $contact_id, $record, $old_number = NULL) {
     $this->config = CRM_Streetimport_Config::singleton();
 
     // calculate subject based on type
@@ -227,7 +248,7 @@ class CRM_Streetimport_GP_Handler_TEDITelephoneRecordHandler extends CRM_Streeti
     switch ($type) {
       case TM_PHONE_CHANGED:
         $subject = $this->config->translate('Contact Phone Updated');
-        $details = sprintf($this->config->translate('Corrected number %s to %s'), $new_number, $new_number);
+        $details = sprintf($this->config->translate('Corrected number %s to %s'), $old_number, $new_number);
         break;
 
       case TM_PHONE_DELETED:

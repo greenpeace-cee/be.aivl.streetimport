@@ -1,0 +1,10 @@
+Adnr;Grund;EinspDatum;Strasse;PLZ;Ort
+{ref:unknown};01;20260901;;;
+{ref:rejected};02;20260901;;;
+{ref:moved};03;20260901;;;
+{ref:notretrieved};04;20260901;;;
+{ref:incomplete};05;20260901;;;
+{ref:deceased};06;20260901;;;
+{ref:other};07;20260901;;;
+{ref:badcode};08;20260901;;;
+{ref:unused};09;20260901;;;

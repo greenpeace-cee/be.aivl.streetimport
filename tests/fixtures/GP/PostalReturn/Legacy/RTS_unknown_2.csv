@@ -1,0 +1,6 @@
+scanned_code;comment
+;empty reference
+not-a-reference;malformed reference
+100000{contact:jane};campaign ID zero
+1{campaign}999999999;unknown contact
+{ref:jane};valid

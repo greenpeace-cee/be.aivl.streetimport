@@ -1,0 +1,6 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie
+{id:erase};25;Kontakt löschen;2026-09-01 14:30:00
+{id:disable};26;Kontakt stilllegen;2026-09-01 14:30:00
+{id:inactive};27;nicht kontaktieren;2026-09-01 14:30:00
+{id:deceased};40;verstorben;2026-09-01 14:30:00
+{id:donotphone};41;Anrufsperre;2026-09-01 14:30:00

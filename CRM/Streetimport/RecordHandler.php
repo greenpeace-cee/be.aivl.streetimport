@@ -331,7 +331,7 @@ abstract class CRM_Streetimport_RecordHandler {
       $this->logger->logError($config->translate("Couldn't create activity"), $record, $config->translate("Create Activity Error"), "Error");
       return NULL;
     } else {
-      $this->logger->logDebug($config->translate("Activity created").": ".$activity->id.": ".$data['subject'], $record);
+      $this->logger->logDebug($config->translate("Activity created").": ".$activity->id.": ".($data['subject'] ?? ''), $record);
       return $activity;
     }
   }

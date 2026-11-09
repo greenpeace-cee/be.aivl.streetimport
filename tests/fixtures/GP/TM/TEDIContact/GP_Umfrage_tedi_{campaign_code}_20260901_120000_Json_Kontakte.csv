@@ -1,0 +1,7 @@
+id;Ergebnisnummer;ErgebnisText;TagDerTelefonie;JSON1;JSON2;JSON3
+{id:bmf};11;Info gewünscht;2026-09-01 14:30:00;"{""action"": ""outgoing_call"", ""subject"": ""bmf_umschreibung"", ""first_name"": ""Max"", ""last_name"": ""Muster"", ""phone"": ""+43 1 2345678"", ""response_code"": ""51"", ""response"": ""BMF Umschreibung""}";;
+{id:callback};11;Info gewünscht;2026-09-01 14:30:00;"{""action"": ""outgoing_call"", ""subject"": ""Rückruf"", ""phone"": ""+43 1 7654321""}";;
+{id:groups};11;Info gewünscht;2026-09-01 14:30:00;"{""action"": ""modify_group"", ""group_name"": ""test_add"", ""type"": ""add""}";"{""action"": ""modify_group"", ""group_name"": ""test_remove"", ""type"": ""remove""}";"{""action"": ""modify_group"", ""group_name"": ""test_delete"", ""type"": ""delete""}"
+{id:invalid};11;Info gewünscht;2026-09-01 14:30:00;{broken;;
+{id:unknownaction};11;Info gewünscht;2026-09-01 14:30:00;"{""action"": ""unknown""}";;
+{id:unknowngroup};11;Info gewünscht;2026-09-01 14:30:00;"{""action"": ""modify_group"", ""group_name"": ""does_not_exist"", ""type"": ""add""}";;

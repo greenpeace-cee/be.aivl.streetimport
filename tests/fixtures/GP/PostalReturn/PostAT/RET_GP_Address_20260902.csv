@@ -1,0 +1,5 @@
+Adnr;Grund;EinspDatum;Strasse;PLZ;Ort
+{ref:same};03;20260902;HAUPTSTRASSE 1 ;1010;Wien
+{ref:umlaut};03;20260902;Muehlgasse 3;3380;POECHLARN
+{ref:changed};03;20260902;Nebengasse 5;1010;Wien
+{ref:postcode};03;20260902;Hauptstraße 1;1020;Wien
