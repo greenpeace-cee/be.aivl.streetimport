@@ -425,7 +425,7 @@ abstract class CRM_Streetimport_GP_Handler_HandlerTestBase extends TestCase impl
   /**
    * Create a letter mail activity the RTS activity can be linked to
    *
-   * @param int $contactId
+   * @param int|array $contactId one or more target contact IDs
    * @param string $date
    *
    * @return int activity ID

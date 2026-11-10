@@ -394,27 +394,56 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
   }
 
   /**
+   * Check whether a postal return response for the given contact linked to
+   * the given parent activity already exists
+   *
+   * @param int $contact_id
+   * @param int $parent_activity_id
+   *
+   * @return bool
+   */
+  protected function hasPostalReturnForParent($contact_id, $parent_activity_id) {
+    return \Civi\Api4\Activity::get(FALSE)
+      ->selectRowCount()
+      ->addWhere('activity_type_id:name', '=', 'Response')
+      ->addWhere('medium_id', '=', $this->getMediumID([]))
+      ->addWhere('target_contact_id', '=', $contact_id)
+      ->addWhere('activity_hierarchy.parent_activity_id', '=', $parent_activity_id)
+      ->execute()
+      ->count() > 0;
+  }
+
+  /**
    * Process a postal return
    *
    * @param $record
    *
+   * @return bool FALSE if the return was skipped as a duplicate
    * @throws \CiviCRM_API3_Exception
    */
   protected function processReturn($record) {
     $contact_id = $this->getContactID($record);
     $category = $this->getCategory($record);
-    $primary_address = $this->getPrimaryAddress($contact_id, $record);
-    // whether to increase RTS counter where appropriate
-    $increaseCounter = TRUE;
     // find parent activity
     $parent_activity = $this->getParentActivity(
-      (int) $this->getContactID($record),
+      (int) $contact_id,
       $this->getCampaignID($record),
       [
         'media'                  => ['letter_mail'],
         'exclude_activity_types' => ['Response'],
       ]
     );
+    if (!empty($parent_activity) && $this->hasPostalReturnForParent((int) $contact_id, $parent_activity['id'])) {
+      $this->logger->logError(
+        "A postal return for parent activity [{$parent_activity['id']}] already exists for contact [{$contact_id}]",
+        $record,
+        'Duplicate postal return'
+      );
+      return FALSE;
+    }
+    $primary_address = $this->getPrimaryAddress($contact_id, $record);
+    // whether to increase RTS counter where appropriate
+    $increaseCounter = TRUE;
     if (empty($parent_activity)) {
       // no parent activity found, continue with last RTS activity
       $parent_activity = $this->findLastRTS($contact_id, $record);
@@ -464,6 +493,7 @@ abstract class CRM_Streetimport_GP_Handler_PostalReturn_Base extends CRM_Streeti
     if ($increaseCounter) {
       $this->increaseRTSCounter($primary_address, $record);
     }
+    return TRUE;
   }
 
 }

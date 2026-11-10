@@ -56,7 +56,9 @@ class CRM_Streetimport_GP_Handler_PostalReturn_LegacyRecordHandler extends CRM_S
       return $this->logger->logImport($record, FALSE, 'RTS', "Couldn't identify contact for reference '{$reference}'");
     }
 
-    $this->processReturn($record);
+    if (!$this->processReturn($record)) {
+      return $this->logger->logImport($record, FALSE, 'RTS', 'Duplicate postal return');
+    }
 
     $this->logger->logImport($record, TRUE, 'RTS');
   }

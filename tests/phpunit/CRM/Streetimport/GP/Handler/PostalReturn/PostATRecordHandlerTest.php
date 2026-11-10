@@ -144,4 +144,36 @@ class CRM_Streetimport_GP_Handler_PostalReturn_PostATRecordHandlerTest extends C
     $this->assertEquals(0, $this->getRTSCounter($deleted));
   }
 
+  /**
+   * Returns are skipped if a postal return for the contact linked to the same
+   * parent letter already exists, regardless of date and category. Returns
+   * without a parent are not checked. The parent may be a mass activity, so
+   * returns of other contacts linked to the same parent don't count.
+   */
+  public function testDuplicateForParent() {
+    $jane = $this->createContact('jane');
+    $john = $this->createContact('john');
+    $mary = $this->createContact('mary');
+    $letterId = $this->createLetterActivity([$jane, $mary]);
+    $existing = $this->createRTSActivity($jane, 'unbekannt', '2026-08-15 00:00:00');
+    \Civi\Api4\Activity::update(FALSE)
+      ->addWhere('id', '=', $existing)
+      ->addValue(self::PARENT_ACTIVITY_FIELD, $letterId)
+      ->execute();
+    $this->createRTSActivity($john, 'unbekannt', '2026-08-15 00:00:00');
+
+    $result = $this->importFixture('GP/PostalReturn/PostAT/RET_GP_Duplicate_20260906.csv');
+
+    $this->assertEquals(0, $result['is_error']);
+    $this->assertEquals('2 of 3 records imported.', $result['values']);
+    $this->assertImportErrors(['Duplicate postal return']);
+    $this->assertCount(1, $this->getRTSActivities($jane), 'Duplicate return for same parent should be skipped');
+    $this->assertEquals(0, $this->getRTSCounter($jane));
+    $this->assertCount(2, $this->getRTSActivities($john), 'Returns without parent are not checked for duplicates');
+    $this->assertEquals(1, $this->getRTSCounter($john));
+    $maryActivity = $this->assertSingleRTSActivity($mary, 'verzogen', '2026-09-06 00:00:00');
+    $this->assertEquals($letterId, $maryActivity[self::PARENT_ACTIVITY_FIELD], 'Return of another contact for the same mass activity is imported');
+    $this->assertEquals(1, $this->getRTSCounter($mary));
+  }
+
 }
