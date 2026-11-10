@@ -5,20 +5,20 @@
   <description>Processes TM/DD Files</description>
   <license>AGPL-3.0</license>
   <maintainer>
-    <author>SYSTOPIA</author>
-    <email>endres@systopia.de</email>
+    <author>Patrick Figel</author>
+    <email>pfigel@greenpeace.org</email>
   </maintainer>
   <urls>
-    <url desc="Main Extension Page">http://https://github.com/CiviCooP/be.aivl.streetimport</url>
-    <url desc="Documentation">http://https://github.com/CiviCooP/be.aivl.streetimport</url>
-    <url desc="Support">http://www.civicoop.org</url>
-    <url desc="Licensing">http://www.gnu.org/licenses/agpl-3.0.html</url>
+    <url desc="Main Extension Page">https://github.com/greenpeace-cee/be.aivl.streetimport</url>
+    <url desc="Documentation">https://github.com/greenpeace-cee/be.aivl.streetimport</url>
+    <url desc="Support">https://github.com/greenpeace-cee/be.aivl.streetimport/issues</url>
+    <url desc="Licensing">https://www.gnu.org/licenses/agpl-3.0.html</url>
   </urls>
-  <releaseDate>2026-09-29</releaseDate>
-  <version>GP-2.5.66</version>
-  <develStage>stable</develStage>
+  <releaseDate>2026-11-10</releaseDate>
+  <version>3.0.0-beta.1</version>
+  <develStage>beta</develStage>
   <compatibility>
-    <ver>5.45</ver>
+    <ver>5.69</ver>
   </compatibility>
   <comments>Based on AIVL's Street Recruitment Import</comments>
   <civix>
